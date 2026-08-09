@@ -15,6 +15,7 @@
   init();
 
   function init() {
+    window.GestureReadOverlay?.init();
     notifyBackgroundReady();
     listenForBackgroundMessages();
   }
