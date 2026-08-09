@@ -33,8 +33,18 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["utils/helpers.js", "content/content.js"],
+      "js": [
+        "utils/helpers.js",
+        "content/overlayController.js",
+        "content/content.js"
+      ],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["overlay/overlay.html", "overlay/overlay.css", "overlay/hud.js"],
+      "matches": ["<all_urls>"]
     }
   ]
 }
