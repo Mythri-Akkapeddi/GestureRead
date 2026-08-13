@@ -16,5 +16,10 @@
         "*"
       );
     }
+//     if (data.type === "CONTENT_READY") {
+//       statusDot?.classList.add("on");
+//       window.GestureReadEngine?.init(); // now runs in the overlay's own realm
+//       window.parent.postMessage({ source: "gestureread-overlay", type: "OVERLAY_READY" }, "*");
+// }
   });
 })();
