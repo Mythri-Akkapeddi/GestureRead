@@ -35,7 +35,9 @@
       "matches": ["<all_urls>"],
       "js": [
         "utils/helpers.js",
+        "content/smoothing.js",
         "content/overlayController.js",
+        "content/gestureEngine.js",
         "content/content.js"
       ],
       "run_at": "document_idle"
@@ -44,6 +46,10 @@
   "web_accessible_resources": [
     {
       "resources": ["overlay/overlay.html", "overlay/overlay.css", "overlay/hud.js"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["assets/mediapipe/*", "assets/mediapipe/wasm/*"],
       "matches": ["<all_urls>"]
     }
   ]
