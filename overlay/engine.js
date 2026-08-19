@@ -1,15 +1,6 @@
-// content/gestureEngine.js
-// MediaPipe HandLandmarker setup + webcam capture.
-// Pose classification (open/pinch/point/fist/thumbOnly) is NOT here yet.
-// Right now: a stable camera stream + a running HandLandmarker producing landmarks per frame.
-
-// NOT auto-started by content.js yet on purpose since starting the camera on every single page load would spam every site with a permission prompt. Starting it manually for testing.
-// 1. Request webcam access.
-// 2. Create a hidden video element.
-// 3. Load MediaPipe Tasks Vision from local files.
-// 4. Load the Hand Landmarker model.
-// 5. Run HandLandmarker in VIDEO mode.
-// 6. Send detected landmarks into smoothing.js.
+// Runs inside the overlay iframe (extension-origin page), not the content script.
+// This avoids the isolated-world/main-world split that broke MediaPipe's wasm loader.
+// MediaPipe and the webcam live entirely in this context.
 
 (function () {
   let handLandmarker = null;
@@ -22,11 +13,15 @@
   const WASM_DIR_PATH = "assets/mediapipe/wasm";
 
   async function init() {
+    if (running) {
+      console.log("[GestureRead] gesture engine already running.");
+      return;
+    }
     try {
       await setupCamera();
       await setupHandLandmarker();
       startLoop();
-      console.log("[GestureRead] gesture engine running.");
+      console.log("[GestureRead] gesture engine running (overlay context).");
     } catch (err) {
       console.error("[GestureRead] gesture engine failed to start:", err);
     }
@@ -42,24 +37,22 @@
     videoEl.srcObject = stream;
     videoEl.muted = true;
     videoEl.playsInline = true;
-    // Kept off-screen on purpose, no live camera feed shown, skeleton only.
     videoEl.style.cssText = "position:fixed; top:-9999px; left:-9999px;";
     document.documentElement.appendChild(videoEl);
 
     await videoEl.play();
-    console.log(
-      "[GestureRead] webcam stream active:",
-      stream.getVideoTracks()[0]?.label
-    );
+    console.log("[GestureRead] webcam stream active:", stream.getVideoTracks()[0]?.label);
   }
 
   async function setupHandLandmarker() {
+    console.log("[GestureRead] loading MediaPipe...");
     const bundleUrl = chrome.runtime.getURL(VISION_BUNDLE_PATH);
     const { HandLandmarker, FilesetResolver } = await import(bundleUrl);
+    console.log("[GestureRead] MediaPipe bundle imported.");
 
-    const vision = await FilesetResolver.forVisionTasks(
-      chrome.runtime.getURL(WASM_DIR_PATH)
-    );
+    const vision = await FilesetResolver.forVisionTasks(chrome.runtime.getURL(WASM_DIR_PATH));
+
+    console.log("[GestureRead] MediaPipe vision fileset created:", vision);
 
     handLandmarker = await HandLandmarker.createFromOptions(vision, {
       baseOptions: {
@@ -90,22 +83,31 @@
 
     if (result.landmarks && result.landmarks.length > 0) {
       const smoothed = window.GestureReadSmoothing?.addFrame(result.landmarks[0]);
-      // Will forward `smoothed` to overlayController -> skeletonCanvas later on.
-      // For now, just to confirm if detection is live (throttled log so console isn't flooded).
       if (Math.random() < 0.02) {
         console.log("[GestureRead] hand detected, landmark count:", smoothed?.length);
       }
+      // Tell the parent page (content script) we're alive and detecting.
+      window.parent.postMessage(
+        { source: "gestureread-overlay", type: "LANDMARKS_FRAME", payload: { count: smoothed?.length } },
+        "*"
+      );
     }
   }
 
   function stop() {
     running = false;
     if (rafId) cancelAnimationFrame(rafId);
-    if (videoEl?.srcObject) {
-      videoEl.srcObject.getTracks().forEach((t) => t.stop());
-    }
+    if (videoEl?.srcObject) videoEl.srcObject.getTracks().forEach((t) => t.stop());
     console.log("[GestureRead] gesture engine stopped.");
   }
+
+  // Triggered from the content script via postMessage, not auto-started.
+  window.addEventListener("message", (event) => {
+    const data = event.data;
+    if (!data || data.source !== "gestureread-content") return;
+    if (data.type === "START_ENGINE") init();
+    if (data.type === "STOP_ENGINE") stop();
+  });
 
   window.GestureReadEngine = { init, stop };
 })();
