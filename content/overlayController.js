@@ -1,4 +1,3 @@
-// content/overlayController.js
 // Injects the transparent overlay iframe into the page and handles the postMessage handshake with it. 
 // Runs before content.js in manifest.json's content_scripts array so content.js can call window.GestureReadOverlay.init().
 // In short, responsible for:
@@ -23,6 +22,7 @@
     iframe.id = OVERLAY_ID;
     iframe.src = chrome.runtime.getURL("overlay/overlay.html");
     iframe.setAttribute("aria-hidden", "true");
+    iframe.setAttribute("allow", "camera");
     iframe.style.cssText = [
       "position: fixed",
       "top: 0",
@@ -102,9 +102,27 @@
       );
     }
   });
+
+  function startEngine() {
+  if (!overlayFrame || !overlayFrame.contentWindow) {
+    console.warn(
+      "[GestureRead] cannot start engine: overlay not ready"
+    );
+    return;
+  }
+
+  overlayFrame.contentWindow.postMessage(
+    {
+      source: "gestureread-content",
+      type: "START_ENGINE"
+    },
+    "*"
+  );
+}
   
   window.GestureReadOverlay = {
     init: initOverlay,
-    ping: pingOverlay
+    ping: pingOverlay,
+    startEngine
   };
 })();
