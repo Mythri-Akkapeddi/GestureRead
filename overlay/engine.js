@@ -83,14 +83,17 @@
 
     if (result.landmarks && result.landmarks.length > 0) {
       const smoothed = window.GestureReadSmoothing?.addFrame(result.landmarks[0]);
+      window.GestureReadSkeleton?.draw(smoothed);
+
       if (Math.random() < 0.02) {
         console.log("[GestureRead] hand detected, landmark count:", smoothed?.length);
       }
-      // Tell the parent page (content script) we're alive and detecting.
       window.parent.postMessage(
         { source: "gestureread-overlay", type: "LANDMARKS_FRAME", payload: { count: smoothed?.length } },
         "*"
       );
+    } else {
+      window.GestureReadSkeleton?.clear();
     }
   }
 
@@ -98,6 +101,7 @@
     running = false;
     if (rafId) cancelAnimationFrame(rafId);
     if (videoEl?.srcObject) videoEl.srcObject.getTracks().forEach((t) => t.stop());
+    window.GestureReadSkeleton?.clear();
     console.log("[GestureRead] gesture engine stopped.");
   }
 
