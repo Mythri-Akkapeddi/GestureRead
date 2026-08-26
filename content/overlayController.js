@@ -6,10 +6,17 @@
 // 3. Keeping the iframe above the webpage.
 // 4. Performing the content <-> overlay handshake.
 
+// the MutationObserver that re-injects a removed overlay is now debounced and circuit-breakered, and remembers whether the engine was running so it can be restarted after a genuine reinjection (e.g. an SPA nuking and rebuilding <html> on route change).
+
 (function () {
   const OVERLAY_ID = "gestureread-overlay-frame";
+  const REINJECT_LIMIT = 5;
+  const REINJECT_WINDOW_MS = 10000;
+
   let overlayFrame = null;
   let removalObserver = null;
+  let engineRunning = false;
+  let pendingEngineRestart = false;
 
   function initOverlay() {
     const existing = document.getElementById(OVERLAY_ID);
@@ -58,10 +65,7 @@
       return;
     }
     overlayFrame.contentWindow.postMessage(
-      {
-        source: "gestureread-content",
-        type: "CONTENT_READY"
-      },
+      { source: "gestureread-content", type: "CONTENT_READY" },
       "*"
     );
   }
@@ -70,19 +74,39 @@
     if (removalObserver) {
       return;
     }
-    removalObserver = new MutationObserver(() => {
+
+    let reinjectCount = 0;
+    let windowStart = Date.now();
+
+    const handleRemoval = debounce(() => {
       const current = document.getElementById(OVERLAY_ID);
-      if (!current && document.documentElement) {
-        console.warn(
-          "[GestureRead] overlay was removed. Re-injecting."
-        );
-        overlayFrame = null;
-        initOverlay();
+      if (current) return; // false alarm — still there
+
+      const now = Date.now();
+      if (now - windowStart > REINJECT_WINDOW_MS) {
+        windowStart = now;
+        reinjectCount = 0;
       }
-    });
-    removalObserver.observe(document.documentElement, {
-      childList: true
-    });
+      reinjectCount++;
+
+      if (reinjectCount > REINJECT_LIMIT) {
+        console.warn(
+          `[GestureRead] overlay removed ${reinjectCount}x in ${REINJECT_WINDOW_MS}ms — this page ` +
+          `is likely thrashing the DOM (heavy SPA). Skipping auto-reinject this cycle to avoid ` +
+          `repeatedly restarting the camera.`
+        );
+        return;
+      }
+
+      console.warn("[GestureRead] overlay was removed. Re-injecting.", { reinjectCount });
+      pendingEngineRestart = engineRunning;
+      engineRunning = false;
+      overlayFrame = null;
+      initOverlay();
+    }, 300);
+
+    removalObserver = new MutationObserver(handleRemoval);
+    removalObserver.observe(document.documentElement, { childList: true });
   }
 
   window.addEventListener("message", (event) => {
@@ -96,33 +120,44 @@
     if (!data || data.source !== "gestureread-overlay") {
       return;
     }
+
     if (data.type === "OVERLAY_READY") {
-      console.log(
-        "[GestureRead] overlay acknowledged handshake"
-      );
+      console.log("[GestureRead] overlay acknowledged handshake");
+      if (pendingEngineRestart) {
+        pendingEngineRestart = false;
+        console.log("[GestureRead] restarting engine after overlay reinjection");
+        startEngine();
+      }
     }
   });
 
   function startEngine() {
-  if (!overlayFrame || !overlayFrame.contentWindow) {
-    console.warn(
-      "[GestureRead] cannot start engine: overlay not ready"
+    if (!overlayFrame || !overlayFrame.contentWindow) {
+      console.warn("[GestureRead] cannot start engine: overlay not ready");
+      return;
+    }
+    engineRunning = true;
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "START_ENGINE" },
+      "*"
     );
-    return;
   }
 
-  overlayFrame.contentWindow.postMessage(
-    {
-      source: "gestureread-content",
-      type: "START_ENGINE"
-    },
-    "*"
-  );
-}
-  
+  function stopEngine() {
+    if (!overlayFrame || !overlayFrame.contentWindow) {
+      return;
+    }
+    engineRunning = false;
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "STOP_ENGINE" },
+      "*"
+    );
+  }
+
   window.GestureReadOverlay = {
     init: initOverlay,
     ping: pingOverlay,
-    startEngine
+    startEngine,
+    stopEngine
   };
 })();
