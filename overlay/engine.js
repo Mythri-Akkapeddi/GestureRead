@@ -89,11 +89,15 @@
         console.log("[GestureRead] hand detected, landmark count:", smoothed?.length);
       }
       window.parent.postMessage(
-        { source: "gestureread-overlay", type: "LANDMARKS_FRAME", payload: { count: smoothed?.length } },
+        { source: "gestureread-overlay", type: "LANDMARKS_FRAME", payload: { landmarks: smoothed } },
         "*"
       );
     } else {
       window.GestureReadSkeleton?.clear();
+      window.parent.postMessage(
+        { source: "gestureread-overlay", type: "LANDMARKS_FRAME", payload: { landmarks: null } },
+        "*"
+      );
     }
   }
 
