@@ -128,6 +128,12 @@
         console.log("[GestureRead] restarting engine after overlay reinjection");
         startEngine();
       }
+      return;
+    }
+
+    if (data.type === "LANDMARKS_FRAME") {
+      window.dispatchEvent(new CustomEvent("gestureread:landmarks", { detail: data.payload }));
+      return;
     }
   });
 
