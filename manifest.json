@@ -38,7 +38,9 @@
       "matches": ["<all_urls>"],
       "js": [
         "utils/helpers.js",
+        "utils/math.js",
         "content/overlayController.js",
+        "content/gestureEngine.js",
         "content/content.js"
       ],
       "run_at": "document_idle"
