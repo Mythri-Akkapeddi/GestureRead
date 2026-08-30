@@ -16,3 +16,7 @@ function standardDeviation(values) {
   const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
   return Math.sqrt(variance);
 }
+function rollingMean(values) {
+  if (!values || values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
