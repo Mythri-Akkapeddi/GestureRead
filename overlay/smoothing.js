@@ -1,5 +1,6 @@
 // Runs inside the overlay iframe alongside engine.js
 // Rolling average over the last N landmark frames (N=5 default), averages each of the 21 landmark points' x/y/z across the history window to cut jitter from raw MediaPipe output.
+// getJitterVariance computes from wrist-Y spread across the current history window using standardDeviation from utils/math.js. Nothing uses it yet, fatigueMonitor.js will
 
 (function () {
   const DEFAULT_HISTORY_SIZE = 5;
@@ -45,8 +46,10 @@
   }
 
   function getJitterVariance() {
-    // Placeholder for fatigueMonitor.js
-    return 0;
+    if (history.length < 2) return 0;
+    // Landmark 0 = wrist.
+    const wristYs = history.map((frame) => frame[0].y);
+    return standardDeviation(wristYs);
   }
 
   function reset() {
