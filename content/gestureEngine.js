@@ -3,6 +3,7 @@
 // Has pose classification and gesture dispatch
 // Does NOT touch MediaPipe or the camera, that lives entirely in overlay/engine.js.
 
+
 (function () {
   const WRIST = 0;
   const FINGERS = [
@@ -13,17 +14,38 @@
     { name: "pinky", tip: 20, pip: 18 },
   ];
 
-  const SCROLL_MOVE_THRESHOLD = 0.01;   // normalized-Y delta below which the hand counts as "still"
-  const SCROLL_SPEED_MULTIPLIER = 4000; // scales normalized-Y delta into scroll pixels
-  const MAX_SCROLL_PER_FRAME = 60;      // clamp so a jump/re-detect can't slam the page
+  const SCROLL_MOVE_THRESHOLD = 0.01;
+  const SCROLL_SPEED_MULTIPLIER = 4000;
+  const MAX_SCROLL_PER_FRAME = 60;
+
+  // A raw per-frame pose classification is noisy right at the boundary (2 vs 3 fingers extended). Require the SAME raw pose for POSE_STABILITY_FRAMES consecutive frames before it becomes the committed currentPose. 
+  // This is what kills the scroll "double-trigger/hitch" symptom. Without it, one misclassified frame resets lastPalmY and restarts the scroll delta calculation mid-swipe.
+  const POSE_STABILITY_FRAMES = 3;
 
   let lastPalmY = null;
   let currentPose = null;
+  let candidatePose = null;
+  let candidateStreak = 0;
   let enabled = true;
 
-  // v1 classifier: for each of the 4 non-thumb fingers, "extended" if the tip is farther from
-  // the wrist than that finger's PIP joint is. Thumb geometry is different so it's skipped here
-  // will be handled separately when pinch/thumb-only gestures are added.
+  // Generic per-gesture cooldown registry
+  // Keyed per gesture name, NOT one global lock, engaging one gesture must never block a different gesture from firing the same frame.
+  // Nothing uses it yet (scroll is continuous, doesn't need one)
+
+  const gestureCooldowns = new Map();
+
+  function canTrigger(gestureName, cooldownMs) {
+    const last = gestureCooldowns.get(gestureName);
+    if (last === undefined) return true;
+    return performance.now() - last >= cooldownMs;
+  }
+
+  function markTriggered(gestureName) {
+    gestureCooldowns.set(gestureName, performance.now());
+  }
+
+  // v1 classifier: for each of the 4 non-thumb fingers, "extended" if the tip is farther from the wrist than that finger's PIP joint is. 
+  // Thumb geometry is different so it's skipped here.
   function classifyPose(landmarks) {
     if (!landmarks || landmarks.length < 21) return null;
 
@@ -42,6 +64,23 @@
     if (extendedCount >= 3) return "open";
     if (extendedCount === 0) return "fist";
     return "unknown";
+  }
+
+  // Commits a raw classification to currentPose only after it's been consistent for POSE_STABILITY_FRAMES frames in a row.
+  function updateStablePose(rawPose) {
+    if (rawPose === candidatePose) {
+      candidateStreak++;
+    } else {
+      candidatePose = rawPose;
+      candidateStreak = 1;
+    }
+
+    if (candidateStreak >= POSE_STABILITY_FRAMES && currentPose !== candidatePose) {
+      currentPose = candidatePose;
+      console.log("[GestureRead] pose:", currentPose);
+    }
+
+    return currentPose;
   }
 
   function detectScroll(pose, landmarks) {
@@ -75,16 +114,15 @@
     if (!landmarks) {
       if (currentPose !== null) {
         currentPose = null;
+        candidatePose = null;
+        candidateStreak = 0;
         lastPalmY = null;
       }
       return;
     }
 
-    const pose = classifyPose(landmarks);
-    if (pose !== currentPose) {
-      currentPose = pose;
-      console.log("[GestureRead] pose:", pose);
-    }
+    const rawPose = classifyPose(landmarks);
+    const pose = updateStablePose(rawPose);
 
     detectScroll(pose, landmarks);
   }
@@ -93,7 +131,13 @@
 
   window.GestureReadGestureEngine = {
     enable: () => { enabled = true; },
-    disable: () => { enabled = false; lastPalmY = null; currentPose = null; },
+    disable: () => {
+      enabled = false;
+      lastPalmY = null;
+      currentPose = null;
+      candidatePose = null;
+      candidateStreak = 0;
+    },
     classifyPose, // exposed for manual console testing
   };
 })();
