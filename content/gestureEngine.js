@@ -6,7 +6,12 @@
 // Mutual exclusivity: exactly one gesture can be "live" at a time (activeGesture).
 
 (async function () {
-  const { PINCH_ENTER, PINCH_EXIT } = await import(chrome.runtime.getURL("utils/constants.js"));
+  const {
+    PINCH_ENTER,
+    PINCH_EXIT,
+    BRIGHTNESS_MOVE_THRESHOLD,
+    BRIGHTNESS_SENSITIVITY,
+  } = await import(chrome.runtime.getURL("utils/constants.js"));
 
   const WRIST = 0;
   const THUMB_TIP = 4;
@@ -23,7 +28,7 @@
   const SCROLL_SPEED_MULTIPLIER = 4000;
   const MAX_SCROLL_PER_FRAME = 60;
 
-  const POSE_STABILITY_FRAMES = 3; // frames of consistent "open" required before scroll is allowed to START
+  const POSE_STABILITY_FRAMES = 3; // frames of consistent pose required before a gesture is allowed to START
 
   const PINCH_MOVE_THRESHOLD = 0.004;
   const PINCH_ZOOM_SENSITIVITY = 6;
@@ -31,7 +36,7 @@
 
   let enabled = true;
 
-  // Single source of truth: null | "scroll" | "pinch".
+  // Single source of truth: null | "scroll" | "pinch" | "brightness".
   let activeGesture = null;
 
   let currentPose = null;
@@ -40,6 +45,7 @@
 
   let lastPalmY = null;
   let lastPinchDistance = null;
+  let lastThumbY = null;
 
   const gestureCooldowns = new Map();
   function canTrigger(name, cooldownMs) {
@@ -50,27 +56,47 @@
     gestureCooldowns.set(name, performance.now());
   }
 
-  // Raw finger-extension count, independent of pinch state, used both for classification and while scrolling to decide when to stop.
-  function rawFingerPose(landmarks) {
+  // finger extension helpers, shared by every pose
+  function isExtended(landmarks, finger) {
     const wrist = landmarks[WRIST];
-    let extendedCount = 0;
+    return euclideanDistance(landmarks[finger.tip], wrist) > euclideanDistance(landmarks[finger.pip], wrist);
+  }
+
+  function isThumbExtended(landmarks) {
+    const thumb = FINGERS.find((f) => f.name === "thumb");
+    return isExtended(landmarks, thumb);
+  }
+
+  function countExtendedNonThumbFingers(landmarks) {
+    let count = 0;
     for (const finger of FINGERS) {
       if (finger.name === "thumb") continue;
-      const tip = landmarks[finger.tip];
-      const pip = landmarks[finger.pip];
-      if (euclideanDistance(tip, wrist) > euclideanDistance(pip, wrist)) extendedCount++;
+      if (isExtended(landmarks, finger)) count++;
     }
+    return count;
+  }
+
+  // Raw finger extension count, independent of pinch state, used both for classification and while scrolling to decide when to stop.
+  function rawFingerPose(landmarks) {
+    const extendedCount = countExtendedNonThumbFingers(landmarks);
     if (extendedCount >= 3) return "open";
     if (extendedCount === 0) return "fist";
     return "unknown";
   }
 
-  // Purely descriptive (for logging + deciding whether scroll may START).
+  // Fist shape, but thumb sticking out. Used for brightness.
+  function isThumbOnlyPose(landmarks) {
+    return countExtendedNonThumbFingers(landmarks) === 0 && isThumbExtended(landmarks);
+  }
+
+  // Purely descriptive (for logging + deciding whether a gesture may START).
   // Does not itself gate anything, activeGesture does that.
+  // Single source of truth for pose category: open / pinch / thumbOnly / point / fist.
   function classifyPose(landmarks) {
     if (!landmarks || landmarks.length < 21) return null;
     const pinchDist = euclideanDistance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]);
     if (activeGesture === "pinch" || pinchDist < PINCH_ENTER) return "pinch";
+    if (activeGesture === "brightness" || isThumbOnlyPose(landmarks)) return "thumbOnly";
     return rawFingerPose(landmarks);
   }
 
@@ -89,7 +115,7 @@
   }
 
   function runScroll(landmarks) {
-    // Exit the instant the hand stops looking "open", no debounce on the way out, only on the way in. 
+    // Exit the instant the hand stops looking "open", no debounce on the way out, only on the way in.
     // Responsiveness matters more once a gesture is already running and this is also what hands scroll back off to pinch.
     if (rawFingerPose(landmarks) !== "open") {
       activeGesture = null;
@@ -134,6 +160,29 @@
     window.GestureReadPageNavigator?.zoomBy(1 + deltaDist * PINCH_ZOOM_SENSITIVITY);
   }
 
+  function runBrightness(landmarks) {
+    // Same exit logic as scroll: leave the instant the hand stops being thumb-only, no debounce on the way out.
+    if (!isThumbOnlyPose(landmarks)) {
+      activeGesture = null;
+      lastThumbY = null;
+      return;
+    }
+
+    const thumbY = landmarks[THUMB_TIP].y;
+    if (lastThumbY === null) {
+      lastThumbY = thumbY;
+      return;
+    }
+
+    const deltaY = thumbY - lastThumbY;
+    lastThumbY = thumbY;
+    if (Math.abs(deltaY) < BRIGHTNESS_MOVE_THRESHOLD) return;
+
+    // Normalized Y increases downward, so moving the thumb UP (deltaY negative) should brighten.
+    const change = -deltaY * BRIGHTNESS_SENSITIVITY;
+    window.GestureReadPageNavigator?.brightnessBy(change);
+  }
+
   function tryEnterPinch(landmarks) {
     const dist = euclideanDistance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]);
     if (dist < PINCH_ENTER && canTrigger("pinchEngage", PINCH_ENGAGE_COOLDOWN_MS)) {
@@ -141,6 +190,16 @@
       lastPinchDistance = dist;
       markTriggered("pinchEngage");
       console.log("[GestureRead] pinch engaged");
+      return true;
+    }
+    return false;
+  }
+
+  function tryEnterBrightness(stablePose, landmarks) {
+    if (stablePose === "thumbOnly") {
+      activeGesture = "brightness";
+      lastThumbY = landmarks[THUMB_TIP].y;
+      console.log("[GestureRead] brightness engaged");
       return true;
     }
     return false;
@@ -166,6 +225,7 @@
       candidateStreak = 0;
       lastPalmY = null;
       lastPinchDistance = null;
+      lastThumbY = null;
       return;
     }
 
@@ -174,16 +234,22 @@
 
     if (activeGesture === "scroll") {
       runScroll(landmarks);
-      return; // pinch isn't evaluated at all while scroll owns this frame
+      return;
     }
 
     if (activeGesture === "pinch") {
       runPinch(landmarks);
-      return; // scroll isn't evaluated at all while pinch owns this frame
+      return;
     }
 
-    // Nothing active, pinch is the more deliberate shape, so check it first.
+    if (activeGesture === "brightness") {
+      runBrightness(landmarks);
+      return;
+    }
+
+    // Nothing active. Pinch and thumbOnly are the more deliberate shapes, check them before the broader "open" scroll pose.
     if (tryEnterPinch(landmarks)) return;
+    if (tryEnterBrightness(stablePose, landmarks)) return;
     tryEnterScroll(stablePose, landmarks);
   }
 
@@ -199,6 +265,7 @@
       candidateStreak = 0;
       lastPalmY = null;
       lastPinchDistance = null;
+      lastThumbY = null;
     },
     classifyPose, // exposed for manual console testing
   };
