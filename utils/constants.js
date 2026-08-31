@@ -27,3 +27,7 @@ export const MAX_GESTURE_LOGS = 500;
 
 export const MAX_NOTIFICATIONS = 2;
 export const NOTIFICATION_DISMISS_MS = 3000;
+
+// Gesture tuning
+export const PINCH_ENTER = 0.08; // normalized thumb–index distance to engage pinch
+export const PINCH_EXIT = 0.18;  // must open back out past this before pinch disengages
