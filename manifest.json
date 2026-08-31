@@ -40,6 +40,7 @@
         "utils/helpers.js",
         "utils/math.js",
         "content/overlayController.js",
+        "content/pageNavigator.js",
         "content/gestureEngine.js",
         "content/content.js"
       ],
@@ -53,6 +54,10 @@
     },
     {
       "resources": ["assets/mediapipe/*", "assets/mediapipe/wasm/*"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["utils/constants.js"],
       "matches": ["<all_urls>"]
     }
   ]
