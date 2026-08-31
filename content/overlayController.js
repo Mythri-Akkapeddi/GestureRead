@@ -160,10 +160,19 @@
     );
   }
 
+  function setBrightness(opacity) {
+    if (!overlayFrame || !overlayFrame.contentWindow) return;
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "SET_BRIGHTNESS", payload: { opacity } },
+      "*"
+    );
+  }
+
   window.GestureReadOverlay = {
     init: initOverlay,
     ping: pingOverlay,
     startEngine,
-    stopEngine
+    stopEngine,
+    setBrightness
   };
 })();
