@@ -4,8 +4,12 @@
 // Does NOT touch MediaPipe or the camera, that lives entirely in overlay/engine.js.
 
 
-(function () {
+(async function () {
+  const { PINCH_ENTER, PINCH_EXIT } = await import(chrome.runtime.getURL("utils/constants.js"));
+
   const WRIST = 0;
+  const THUMB_TIP = 4;
+  const INDEX_TIP = 8;
   const FINGERS = [
     { name: "thumb", tip: 4, pip: 2 },
     { name: "index", tip: 8, pip: 6 },
@@ -18,9 +22,12 @@
   const SCROLL_SPEED_MULTIPLIER = 4000;
   const MAX_SCROLL_PER_FRAME = 60;
 
-  // A raw per-frame pose classification is noisy right at the boundary (2 vs 3 fingers extended). Require the SAME raw pose for POSE_STABILITY_FRAMES consecutive frames before it becomes the committed currentPose. 
-  // This is what kills the scroll "double-trigger/hitch" symptom. Without it, one misclassified frame resets lastPalmY and restarts the scroll delta calculation mid-swipe.
   const POSE_STABILITY_FRAMES = 3;
+
+  // Pinch tuning — the enter/exit distances themselves come from constants.js, these handle how a held pinch translates into zoom.
+  const PINCH_MOVE_THRESHOLD = 0.004;   // ignore sub-tremor finger jitter
+  const PINCH_ZOOM_SENSITIVITY = 6;     // scales normalized distance delta into a zoom factor
+  const PINCH_ENGAGE_COOLDOWN_MS = 250; // applied only to the enter transition
 
   let lastPalmY = null;
   let currentPose = null;
@@ -28,9 +35,8 @@
   let candidateStreak = 0;
   let enabled = true;
 
-  // Generic per-gesture cooldown registry
-  // Keyed per gesture name, NOT one global lock, engaging one gesture must never block a different gesture from firing the same frame.
-  // Nothing uses it yet (scroll is continuous, doesn't need one)
+  let pinchActive = false;
+  let lastPinchDistance = null;
 
   const gestureCooldowns = new Map();
 
@@ -44,10 +50,12 @@
     gestureCooldowns.set(gestureName, performance.now());
   }
 
-  // v1 classifier: for each of the 4 non-thumb fingers, "extended" if the tip is farther from the wrist than that finger's PIP joint is. 
-  // Thumb geometry is different so it's skipped here.
+  // Pinch is checked first since thumb–index distance is a much stronger discriminator for it than finger-extension counting is.
   function classifyPose(landmarks) {
     if (!landmarks || landmarks.length < 21) return null;
+
+    const pinchDist = euclideanDistance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]);
+    if (pinchActive || pinchDist < PINCH_ENTER) return "pinch";
 
     const wrist = landmarks[WRIST];
     let extendedCount = 0;
@@ -66,7 +74,6 @@
     return "unknown";
   }
 
-  // Commits a raw classification to currentPose only after it's been consistent for POSE_STABILITY_FRAMES frames in a row.
   function updateStablePose(rawPose) {
     if (rawPose === candidatePose) {
       candidateStreak++;
@@ -107,6 +114,45 @@
     window.scrollBy(0, scrollAmount);
   }
 
+  // hysteresis on the raw (unstabilized) pinch distance, engage at PINCH_ENTER (0.08), only disengage once fingers open back out past PINCH_EXIT (0.18). 
+  // The gap between the two is what stops a finger pair hovering right at one threshold from flickering the zoom on/off
+
+  function detectPinch(landmarks, stablePose) {
+    const dist = euclideanDistance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]);
+
+    if (!pinchActive) {
+      // Only allow a NEW pinch to engage when it's not confidently mid-scroll.
+      if (stablePose === "open") return;
+      if (dist < PINCH_ENTER && canTrigger("pinchEngage", PINCH_ENGAGE_COOLDOWN_MS)) {
+        pinchActive = true;
+        lastPinchDistance = dist;
+        markTriggered("pinchEngage");
+        console.log("[GestureRead] pinch engaged");
+      }
+      return;
+    }
+
+    if (dist > PINCH_EXIT) {
+      pinchActive = false;
+      lastPinchDistance = null;
+      console.log("[GestureRead] pinch released");
+      return;
+    }
+
+    if (lastPinchDistance === null) {
+      lastPinchDistance = dist;
+      return;
+    }
+
+    const deltaDist = dist - lastPinchDistance;
+    lastPinchDistance = dist;
+
+    if (Math.abs(deltaDist) < PINCH_MOVE_THRESHOLD) return;
+
+    const zoomFactor = 1 + deltaDist * PINCH_ZOOM_SENSITIVITY;
+    window.GestureReadPageNavigator?.zoomBy(zoomFactor);
+  }
+
   function handleLandmarksFrame(event) {
     if (!enabled) return;
 
@@ -125,6 +171,7 @@
     const pose = updateStablePose(rawPose);
 
     detectScroll(pose, landmarks);
+    detectPinch(landmarks, pose);
   }
 
   window.addEventListener("gestureread:landmarks", handleLandmarksFrame);
@@ -137,6 +184,8 @@
       currentPose = null;
       candidatePose = null;
       candidateStreak = 0;
+      pinchActive = false;
+      lastPinchDistance = null;
     },
     classifyPose, // exposed for manual console testing
   };
