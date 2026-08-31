@@ -31,3 +31,7 @@ export const NOTIFICATION_DISMISS_MS = 3000;
 // Gesture tuning
 export const PINCH_ENTER = 0.08; // normalized thumb–index distance to engage pinch
 export const PINCH_EXIT = 0.18;  // must open back out past this before pinch disengages
+
+// Brightness gesture tuning
+export const BRIGHTNESS_MOVE_THRESHOLD = 0.008; // normalized thumb-tip Y movement per frame to register a change
+export const BRIGHTNESS_SENSITIVITY = 2.5;       // multiplier translating thumb movement into a brightness delta
