@@ -41,3 +41,15 @@ html, body {
 .gr-status-dot.on {
   background: #22c55e; /* green = handshake confirmed */
 }
+
+#brightness-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  opacity: var(--gr-brightness-opacity, 0);
+  pointer-events: none;
+  transition: opacity 0.1s linear;
+}
