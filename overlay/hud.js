@@ -1,7 +1,8 @@
-// Orchestrator for the overlay iframe. Right now it just proves the handshake with the content script works and flips the status dot. 
-// skeletonCanvas/confidenceBar/notifications will be implemented later
+// Orchestrator for the overlay iframe. Proves the handshake with the content script, flips the status dot and applies the brightness dim layer on request.
+
 (function () {
   const statusDot = document.getElementById("gr-status-dot");
+  const brightnessOverlay = document.getElementById("brightness-overlay");
 
   window.addEventListener("message", (event) => {
     const data = event.data;
@@ -15,11 +16,14 @@
         { source: "gestureread-overlay", type: "OVERLAY_READY" },
         "*"
       );
+      return;
     }
-//     if (data.type === "CONTENT_READY") {
-//       statusDot?.classList.add("on");
-//       window.GestureReadEngine?.init(); // now runs in the overlay's own realm
-//       window.parent.postMessage({ source: "gestureread-overlay", type: "OVERLAY_READY" }, "*");
-// }
+
+    if (data.type === "SET_BRIGHTNESS") {
+      if (brightnessOverlay) {
+        brightnessOverlay.style.setProperty("--gr-brightness-opacity", data.payload?.opacity ?? 0);
+      }
+      return;
+    }
   });
 })();
