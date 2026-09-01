@@ -53,3 +53,10 @@ html, body {
   pointer-events: none;
   transition: opacity 0.1s linear;
 }
+
+.gr-pose-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #facc15;
+  margin-left: 4px;
+}
