@@ -168,11 +168,20 @@
     );
   }
 
+  function setPointStatus(active) {
+    if (!overlayFrame || !overlayFrame.contentWindow) return;
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "POINT_STATUS", payload: { active } },
+      "*"
+    );
+  }
+
   window.GestureReadOverlay = {
     init: initOverlay,
     ping: pingOverlay,
     startEngine,
     stopEngine,
-    setBrightness
+    setBrightness,
+    setPointStatus,
   };
 })();
