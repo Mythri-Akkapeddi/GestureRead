@@ -1,8 +1,8 @@
-// Orchestrator for the overlay iframe. Proves the handshake with the content script, flips the status dot and applies the brightness dim layer on request.
-
+// Orchestrator for the overlay iframe. Proves the handshake with the content script, flips the status dot and applies the brightness dim layer on request and shows the pose label.
 (function () {
   const statusDot = document.getElementById("gr-status-dot");
   const brightnessOverlay = document.getElementById("brightness-overlay");
+  const poseLabel = document.getElementById("gr-pose-label");
 
   window.addEventListener("message", (event) => {
     const data = event.data;
@@ -22,6 +22,13 @@
     if (data.type === "SET_BRIGHTNESS") {
       if (brightnessOverlay) {
         brightnessOverlay.style.setProperty("--gr-brightness-opacity", data.payload?.opacity ?? 0);
+      }
+      return;
+    }
+
+    if (data.type === "POINT_STATUS") {
+      if (poseLabel) {
+        poseLabel.textContent = data.payload?.active ? "Point detected" : "";
       }
       return;
     }
