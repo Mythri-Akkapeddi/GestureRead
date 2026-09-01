@@ -32,8 +32,12 @@
   const POSE_STABILITY_FRAMES = 3; // frames of consistent pose required before a gesture is allowed to START
 
   const PINCH_MOVE_THRESHOLD = 0.004;
+  const MAX_PINCH_FRAME_DELTA = 0.03; // implausibly large single frame jump, almost certainly a pose transition artifact, not intent
   const PINCH_ZOOM_SENSITIVITY = 6;
   const PINCH_ENGAGE_COOLDOWN_MS = 250; // applied only to the enter transition
+
+  const MAX_BRIGHTNESS_FRAME_DELTA = 0.05; // same idea as MAX_PINCH_FRAME_DELTA, for the thumb-tip Y signal
+  const BRIGHTNESS_EXIT_STABILITY_FRAMES = 2; // thumbOnly is a strict "all 4 curled" AND, so it flickers more easily than scroll's looser >=3 threshold, needs a debounce on exit
 
   let enabled = true;
 
@@ -47,6 +51,7 @@
   let lastPalmY = null;
   let lastPinchDistance = null;
   let lastThumbY = null;
+  let brightnessExitStreak = 0;
 
   let pointHoldStart = null;
   let pointDetected = false;
@@ -60,7 +65,7 @@
     gestureCooldowns.set(name, performance.now());
   }
 
-  // --- finger-extension helpers, shared by every pose check below ---
+  // finger-extension helpers
   function isExtended(landmarks, finger) {
     const wrist = landmarks[WRIST];
     return euclideanDistance(landmarks[finger.tip], wrist) > euclideanDistance(landmarks[finger.pip], wrist);
@@ -80,7 +85,7 @@
     return count;
   }
 
-  // Raw finger-extension count, independent of pinch state, used both for classification and while scrolling to decide when to stop.
+  // Raw finger extension count, independent of pinch state, used both for classification and while scrolling to decide when to stop.
   function rawFingerPose(landmarks) {
     const extendedCount = countExtendedNonThumbFingers(landmarks);
     if (extendedCount >= 3) return "open";
@@ -93,7 +98,7 @@
     return countExtendedNonThumbFingers(landmarks) === 0 && isThumbExtended(landmarks);
   }
 
-  // Index extended, everything else (including thumb) curled. Used for point.
+  // Index extended, middle/ring/pinky curled. Used for point. Deliberately doesn't gate on thumb position since most people rest the thumb out to the side rather than tucking it in tight when pointing and index-alone is already unambiguous vs every other pose in this classifier.
   function isPointPose(landmarks) {
     const index = FINGERS.find((f) => f.name === "index");
     const middle = FINGERS.find((f) => f.name === "middle");
@@ -103,8 +108,7 @@
       isExtended(landmarks, index) &&
       !isExtended(landmarks, middle) &&
       !isExtended(landmarks, ring) &&
-      !isExtended(landmarks, pinky) &&
-      !isThumbExtended(landmarks)
+      !isExtended(landmarks, pinky)
     );
   }
 
@@ -158,6 +162,7 @@
   function runPinch(landmarks) {
     const dist = euclideanDistance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]);
 
+    // Hysteresis exit, must open back out past PINCH_EXIT (0.18), not just above PINCH_ENTER (0.08), so a natural zoom-out doesn't drop the gesture mid-motion.
     if (dist > PINCH_EXIT) {
       activeGesture = null;
       lastPinchDistance = null;
@@ -172,17 +177,23 @@
 
     const deltaDist = dist - lastPinchDistance;
     lastPinchDistance = dist;
-    if (Math.abs(deltaDist) < PINCH_MOVE_THRESHOLD) return;
+    if (Math.abs(deltaDist) < PINCH_MOVE_THRESHOLD || Math.abs(deltaDist) > MAX_PINCH_FRAME_DELTA) return;
 
     window.GestureReadPageNavigator?.zoomBy(1 + deltaDist * PINCH_ZOOM_SENSITIVITY);
   }
 
   function runBrightness(landmarks) {
     if (!isThumbOnlyPose(landmarks)) {
-      activeGesture = null;
-      lastThumbY = null;
+      brightnessExitStreak++;
+      if (brightnessExitStreak >= BRIGHTNESS_EXIT_STABILITY_FRAMES) {
+        activeGesture = null;
+        lastThumbY = null;
+        brightnessExitStreak = 0;
+        console.log("[GestureRead] brightness released");
+      }
       return;
     }
+    brightnessExitStreak = 0;
 
     const thumbY = landmarks[THUMB_TIP].y;
     if (lastThumbY === null) {
@@ -192,28 +203,31 @@
 
     const deltaY = thumbY - lastThumbY;
     lastThumbY = thumbY;
-    if (Math.abs(deltaY) < BRIGHTNESS_MOVE_THRESHOLD) return;
+    if (Math.abs(deltaY) < BRIGHTNESS_MOVE_THRESHOLD || Math.abs(deltaY) > MAX_BRIGHTNESS_FRAME_DELTA) return;
 
+    // Normalized Y increases downward, so moving the thumb UP (deltaY negative) should brighten.
     const change = -deltaY * BRIGHTNESS_SENSITIVITY;
     window.GestureReadPageNavigator?.brightnessBy(change);
   }
 
-  function tryEnterPinch(landmarks) {
+  function tryEnterPinch(stablePose, landmarks) {
+    // Debounced the same way scroll/brightness are, a single transitional frame where thumb+index happen to be close together (e.g. mid-reshape) shouldn't fire this.
+    if (stablePose !== "pinch") return false;
+    if (!canTrigger("pinchEngage", PINCH_ENGAGE_COOLDOWN_MS)) return false;
+
     const dist = euclideanDistance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]);
-    if (dist < PINCH_ENTER && canTrigger("pinchEngage", PINCH_ENGAGE_COOLDOWN_MS)) {
-      activeGesture = "pinch";
-      lastPinchDistance = dist;
-      markTriggered("pinchEngage");
-      console.log("[GestureRead] pinch engaged");
-      return true;
-    }
-    return false;
+    activeGesture = "pinch";
+    lastPinchDistance = dist;
+    markTriggered("pinchEngage");
+    console.log("[GestureRead] pinch engaged");
+    return true;
   }
 
   function tryEnterBrightness(stablePose, landmarks) {
     if (stablePose === "thumbOnly") {
       activeGesture = "brightness";
       lastThumbY = landmarks[THUMB_TIP].y;
+      brightnessExitStreak = 0;
       console.log("[GestureRead] brightness engaged");
       return true;
     }
@@ -229,8 +243,6 @@
     return false;
   }
 
-  // Point doesn't become activeGesture, it's purely observational until the LLM sidebar exists.
-  // Uses the already-stabilized currentPose (3-frame debounce) and layers its own longer 0.8s hold on top, using real timestamps so it's independent of frame rate.
   function updatePointDetection(stablePose) {
     if (stablePose !== "point") {
       resetPointDetection();
@@ -270,6 +282,7 @@
       lastPalmY = null;
       lastPinchDistance = null;
       lastThumbY = null;
+      brightnessExitStreak = 0;
       resetPointDetection();
       return;
     }
@@ -294,7 +307,7 @@
       return;
     }
 
-    if (tryEnterPinch(landmarks)) return;
+    if (tryEnterPinch(stablePose, landmarks)) return;
     if (tryEnterBrightness(stablePose, landmarks)) return;
     tryEnterScroll(stablePose, landmarks);
   }
@@ -312,6 +325,7 @@
       lastPalmY = null;
       lastPinchDistance = null;
       lastThumbY = null;
+      brightnessExitStreak = 0;
       resetPointDetection();
     },
     classifyPose, // exposed for manual console testing
