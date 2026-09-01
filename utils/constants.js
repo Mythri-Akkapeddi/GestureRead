@@ -35,3 +35,5 @@ export const PINCH_EXIT = 0.18;  // must open back out past this before pinch di
 // Brightness gesture tuning
 export const BRIGHTNESS_MOVE_THRESHOLD = 0.008; // normalized thumb-tip Y movement per frame to register a change
 export const BRIGHTNESS_SENSITIVITY = 2.5;       // multiplier translating thumb movement into a brightness delta
+
+export const POINT_HOLD_MS = 800; // how long "point" must hold before it's confirmed
