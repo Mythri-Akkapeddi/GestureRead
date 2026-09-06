@@ -101,3 +101,11 @@ export async function getLLMModel() {
 export async function saveLLMModel(model) {
   return setValue(STORAGE_KEYS.LLM_MODEL, model);
 }
+
+// --- Extension on/off state (persisted so it survives reloads/tab close) ---
+export async function getExtensionEnabled() {
+  return getValue(STORAGE_KEYS.EXTENSION_ENABLED, true);
+}
+export async function saveExtensionEnabled(enabled) {
+  return setValue(STORAGE_KEYS.EXTENSION_ENABLED, enabled);
+}
