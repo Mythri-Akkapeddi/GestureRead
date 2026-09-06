@@ -5,6 +5,8 @@
 
 // Mutual exclusivity: exactly one gesture can be "live" at a time (activeGesture).
 
+// The on/off toggle gesture is the one exception, it is always evaluated, even while enabled === false, because otherwise there'd be no way to turn the extension back on.
+
 (async function () {
   const {
     PINCH_ENTER,
@@ -12,6 +14,7 @@
     BRIGHTNESS_MOVE_THRESHOLD,
     BRIGHTNESS_SENSITIVITY,
     POINT_HOLD_MS,
+    TOGGLE_HOLD_MS,
   } = await import(chrome.runtime.getURL("utils/constants.js"));
 
   const WRIST = 0;
@@ -55,6 +58,10 @@
 
   let pointHoldStart = null;
   let pointDetected = false;
+
+  // Toggle (peace-sign hold) state, deliberately separate from `enabled`, since this must keep working while `enabled` is false.
+  let toggleHoldStart = null;
+  let toggleFired = false;
 
   const gestureCooldowns = new Map();
   function canTrigger(name, cooldownMs) {
@@ -112,14 +119,51 @@
     );
   }
 
+  // Small tolerance on the curl check specifically for ring/pinky in the peace pose.
+  // Extending index+middle together tends to drag the ring finger's tip slightly outward via shared tendons, even when the person is trying to keep it curled, a strict tip-farther-than-pip check flips to "extended" on that small drag. 
+  // Requiring the tip to be clearly (not just barely) farther than the pip avoids that false positive.
+  const PEACE_CURL_TOLERANCE = 1.15;
+
+  function isClearlyCurled(landmarks, finger) {
+    const wrist = landmarks[WRIST];
+    const tipDist = euclideanDistance(landmarks[finger.tip], wrist);
+    const pipDist = euclideanDistance(landmarks[finger.pip], wrist);
+    return tipDist < pipDist * PEACE_CURL_TOLERANCE;
+  }
+
+  // Index + middle extended, ring/pinky curled ("peace sign"/"victory"). Used for the on/off toggle.
+  // Uses isClearlyCurled (not isExtended) for ring/pinky specifically, since extending index+middle together mechanically drags the ring finger outward a bit
+  // Doesn't gate on thumb for the same reason isPointPose, thumb position varies a lot person to person and index+middle-only is already unambiguous versus every other pose here.
+  function isPeacePose(landmarks) {
+    const index = FINGERS.find((f) => f.name === "index");
+    const middle = FINGERS.find((f) => f.name === "middle");
+    const ring = FINGERS.find((f) => f.name === "ring");
+    const pinky = FINGERS.find((f) => f.name === "pinky");
+    // if (Math.random() < 0.1) {
+    //   console.log("[GestureRead][debug]", {
+    //     index: isExtended(landmarks, index),
+    //     middle: isExtended(landmarks, middle),
+    //     ring: isExtended(landmarks, ring),
+    //     pinky: isExtended(landmarks, pinky),
+    //   });
+    // }
+    return (
+      isExtended(landmarks, index) &&
+      isExtended(landmarks, middle) &&
+      isClearlyCurled(landmarks, ring) &&
+      isClearlyCurled(landmarks, pinky)
+    );
+  }
+
   // Purely descriptive (for logging + deciding whether a gesture may START).
   // Does not itself gate anything, activeGesture does that.
-  // Single source of truth for pose category: open / pinch / thumbOnly / point / fist.
+  // Single source of truth for pose category: open / pinch / thumbOnly / peace / point / fist.
   function classifyPose(landmarks) {
     if (!landmarks || landmarks.length < 21) return null;
     const pinchDist = euclideanDistance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]);
     if (activeGesture === "pinch" || pinchDist < PINCH_ENTER) return "pinch";
     if (activeGesture === "brightness" || isThumbOnlyPose(landmarks)) return "thumbOnly";
+    if (isPeacePose(landmarks)) return "peace";
     if (isPointPose(landmarks)) return "point";
     return rawFingerPose(landmarks);
   }
@@ -270,10 +314,54 @@
     window.GestureReadOverlay?.setPointStatus(active);
   }
 
-  function handleLandmarksFrame(event) {
-    if (!enabled) return;
+  // On/off toggle (peace-sign hold)
+  // Deliberately evaluated on every frame regardless of `enabled`.
 
+  function updateToggleDetection(stablePose) {
+    if (stablePose !== "peace") {
+      resetToggleDetection();
+      return;
+    }
+    if (toggleHoldStart === null) {
+      toggleHoldStart = performance.now();
+    }
+    const heldFor = performance.now() - toggleHoldStart;
+    if (!toggleFired && heldFor >= TOGGLE_HOLD_MS) {
+      toggleFired = true;
+      performToggle();
+    }
+  }
+
+  function resetToggleDetection() {
+    toggleHoldStart = null;
+    toggleFired = false;
+  }
+
+  function performToggle() {
+    enabled = !enabled;
+    console.log("[GestureRead] toggle held — extension now", enabled ? "ON" : "OFF");
+
+    if (!enabled) {
+      // Nothing should be left "stuck" active when gestures resume.
+      activeGesture = null;
+      lastPalmY = null;
+      lastPinchDistance = null;
+      lastThumbY = null;
+      brightnessExitStreak = 0;
+      resetPointDetection();
+    }
+
+    // Purely visual, dims the HUD / hides the skeleton. 
+    // The camera and MediaPipe loop in overlay/engine.js are never touched, which is exactly why this gesture can still be recognized while `enabled` is false.
+    window.GestureReadOverlay?.setEnabledVisual(enabled);
+
+    // content.js owns persistence (storage goes through background.js), not this file.
+    window.dispatchEvent(new CustomEvent("gestureread:toggle", { detail: { enabled } }));
+  }
+
+  function handleLandmarksFrame(event) {
     const landmarks = event.detail?.landmarks;
+
     if (!landmarks) {
       activeGesture = null;
       currentPose = null;
@@ -284,11 +372,17 @@
       lastThumbY = null;
       brightnessExitStreak = 0;
       resetPointDetection();
+      resetToggleDetection();
       return;
     }
 
     const rawPose = classifyPose(landmarks);
     const stablePose = updateStablePose(rawPose);
+
+    // Always runs, even when `enabled` is false, otherwise there'd be no way back on.
+    updateToggleDetection(stablePose);
+
+    if (!enabled) return;
 
     updatePointDetection(stablePose);
 
@@ -328,6 +422,7 @@
       brightnessExitStreak = 0;
       resetPointDetection();
     },
+    isEnabled: () => enabled, // exposed for manual console testing
     classifyPose, // exposed for manual console testing
   };
 })();
