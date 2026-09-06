@@ -11,6 +11,7 @@
   let drawingUtils = null;
   let HAND_CONNECTIONS = null;
   let ready = false;
+  let visible = true; // hidden while the extension is toggled off, drawing loop keeps running elsewhere
 
   function initCanvas() {
     canvas = document.getElementById(CANVAS_ID);
@@ -54,7 +55,7 @@
   }
 
   function draw(landmarks) {
-    if (!ctx || !canvas) return;
+    if (!ctx || !canvas || !visible) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -91,5 +92,10 @@
     initCanvas();
   }
 
-  window.GestureReadSkeleton = { draw, clear };
+  function setVisible(v) {
+    visible = v;
+    if (!visible) clear();
+  }
+
+  window.GestureReadSkeleton = { draw, clear, setVisible };
 })();
