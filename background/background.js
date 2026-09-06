@@ -1,4 +1,3 @@
-// background/background.js
 // Routes messages between popup <-> content scripts <-> storage.
 // Does NOT do heavy computation
 
@@ -19,6 +18,8 @@ const STORAGE_MESSAGE_TYPES = new Set([
   MESSAGE_TYPES.APPEND_GESTURE_LOG,
   MESSAGE_TYPES.GET_GESTURE_LOGS,
   MESSAGE_TYPES.CLEAR_LOGS,
+  MESSAGE_TYPES.GET_EXTENSION_STATE, 
+  MESSAGE_TYPES.SAVE_EXTENSION_STATE,
 ]);
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
