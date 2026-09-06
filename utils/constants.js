@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   SESSION_HISTORY: "sessionHistory",
   USER_PREFERENCES: "userPreferences",
   LLM_MODEL: "llmModel",
+  EXTENSION_ENABLED: "extensionEnabled",
 };
 
 export const MESSAGE_TYPES = {
@@ -19,10 +20,11 @@ export const MESSAGE_TYPES = {
   APPEND_GESTURE_LOG: "APPEND_GESTURE_LOG",
   GET_GESTURE_LOGS: "GET_GESTURE_LOGS",
   CLEAR_LOGS: "CLEAR_LOGS",
+  GET_EXTENSION_STATE: "GET_EXTENSION_STATE",   
+  SAVE_EXTENSION_STATE: "SAVE_EXTENSION_STATE", 
 };
 
-// Cap on stored gesture log entries — trims oldest logs so we never hit
-// chrome.storage.local's quota mid-session.
+// Cap on stored gesture log entries, trims oldest logs so we never hit chrome.storage.local's quota mid-session.
 export const MAX_GESTURE_LOGS = 500;
 
 export const MAX_NOTIFICATIONS = 2;
@@ -37,3 +39,6 @@ export const BRIGHTNESS_MOVE_THRESHOLD = 0.008; // normalized thumb-tip Y moveme
 export const BRIGHTNESS_SENSITIVITY = 2.5;       // multiplier translating thumb movement into a brightness delta
 
 export const POINT_HOLD_MS = 800; // how long "point" must hold before it's confirmed
+
+// Toggle gesture tuning
+export const TOGGLE_HOLD_MS = 2000; // peace-sign hold duration required to flip on/off
