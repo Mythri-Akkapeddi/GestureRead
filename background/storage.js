@@ -28,6 +28,12 @@ export async function handleStorageMessage(message) {
     case MESSAGE_TYPES.CLEAR_LOGS:
       return { ok: await storageHelpers.clearLogs() };
 
+    case MESSAGE_TYPES.GET_EXTENSION_STATE:
+      return { ok: true, data: await storageHelpers.getExtensionEnabled() };
+
+    case MESSAGE_TYPES.SAVE_EXTENSION_STATE:
+      return { ok: await storageHelpers.saveExtensionEnabled(message.payload) };
+
     default:
       return { ok: false, error: `Unknown storage message type: ${message.type}` };
   }
