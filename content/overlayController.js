@@ -123,6 +123,7 @@
 
     if (data.type === "OVERLAY_READY") {
       console.log("[GestureRead] overlay acknowledged handshake");
+      setEnabledVisual(lastEnabledVisual); // resync in case this fired before the overlay was ready
       if (pendingEngineRestart) {
         pendingEngineRestart = false;
         console.log("[GestureRead] restarting engine after overlay reinjection");
@@ -176,6 +177,17 @@
     );
   }
 
+  let lastEnabledVisual = true; // resent after OVERLAY_READY so a late-loading overlay still syncs
+
+  function setEnabledVisual(enabled) {
+    lastEnabledVisual = enabled;
+    if (!overlayFrame || !overlayFrame.contentWindow) return;
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "SET_ENABLED_VISUAL", payload: { enabled } },
+      "*"
+    );
+  }
+
   window.GestureReadOverlay = {
     init: initOverlay,
     ping: pingOverlay,
@@ -183,5 +195,6 @@
     stopEngine,
     setBrightness,
     setPointStatus,
+    setEnabledVisual,
   };
 })();
