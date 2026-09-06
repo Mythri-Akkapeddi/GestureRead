@@ -60,3 +60,7 @@ html, body {
   color: #facc15;
   margin-left: 4px;
 }
+
+.gr-panel.gr-disabled {
+  opacity: 0.45;
+}
