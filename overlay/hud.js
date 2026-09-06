@@ -3,6 +3,7 @@
   const statusDot = document.getElementById("gr-status-dot");
   const brightnessOverlay = document.getElementById("brightness-overlay");
   const poseLabel = document.getElementById("gr-pose-label");
+  const panel = document.getElementById("gr-hud-panel");
 
   window.addEventListener("message", (event) => {
     const data = event.data;
@@ -30,6 +31,14 @@
       if (poseLabel) {
         poseLabel.textContent = data.payload?.active ? "Point detected" : "";
       }
+      return;
+    }
+
+    if (data.type === "SET_ENABLED_VISUAL") {
+      const enabled = data.payload?.enabled ?? true;
+      if (statusDot) statusDot.classList.toggle("on", enabled);
+      if (panel) panel.classList.toggle("gr-disabled", !enabled);
+      window.GestureReadSkeleton?.setVisible(enabled);
       return;
     }
   });
