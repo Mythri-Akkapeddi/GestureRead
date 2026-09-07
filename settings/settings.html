@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>GestureRead Calibration</title>
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <div id="gr-wizard">
+      <header>
+        <h1>GestureRead Calibration</h1>
+        <p id="gr-step-label"></p>
+        <div id="gr-progress-dots"></div>
+      </header>
+
+      <main id="gr-card">
+        <div id="gr-gesture-emoji" class="gr-pulse"></div>
+        <h2 id="gr-gesture-title"></h2>
+        <p id="gr-gesture-instructions"></p>
+        <p id="gr-countdown"></p>
+      </main>
+
+      <footer>
+        <button id="gr-back-btn">Back</button>
+        <button id="gr-skip-btn">Skip</button>
+        <button id="gr-next-btn">Next</button>
+      </footer>
+    </div>
+
+    <div id="gr-done-screen" class="gr-hidden">
+      <h1>All set!</h1>
+      <p>Calibration complete. Check the console for your personalized thresholds.</p>
+    </div>
+
+    <script type="module" src="calibrationPage.js"></script>
+  </body>
+</html>
