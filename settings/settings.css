@@ -1,0 +1,129 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #111827;
+  color: #f9fafb;
+  font-family: -apple-system, "Segoe UI", sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gr-hidden {
+  display: none !important;
+}
+
+#gr-wizard {
+  width: 480px;
+  padding: 32px;
+  text-align: center;
+}
+
+header h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+
+#gr-step-label {
+  font-size: 13px;
+  opacity: 0.6;
+  margin: 0 0 12px;
+}
+
+#gr-progress-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.gr-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #374151;
+  transition: background 0.2s ease;
+}
+
+.gr-dot-active {
+  background: #22c55e;
+}
+
+.gr-dot-done {
+  background: #4b5563;
+}
+
+#gr-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 32px 24px;
+  margin-bottom: 24px;
+}
+
+#gr-gesture-emoji {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+@keyframes gr-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: 0.75; }
+}
+
+.gr-pulse {
+  animation: gr-pulse 1.4s ease-in-out infinite;
+}
+
+#gr-gesture-title {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+
+#gr-gesture-instructions {
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.85;
+  margin: 0;
+}
+
+#gr-countdown {
+  font-size: 24px;
+  font-weight: 700;
+  color: #facc15;
+  min-height: 32px;
+  margin: 12px 0 0;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+button {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #22c55e;
+  color: #111827;
+}
+
+#gr-back-btn, #gr-skip-btn {
+  background: #374151;
+  color: #f9fafb;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#gr-done-screen {
+  text-align: center;
+}
