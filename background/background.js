@@ -46,6 +46,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // keep the channel open for the async response above
   }
 
+  if (message.type === MESSAGE_TYPES.CALIBRATION_LANDMARK_FRAME) {
+    return false; // not for background, calibrationPage.js listens for this directly
+  }
+
   sendResponse({ ok: false, error: `Unknown message type: ${message.type}` });
   return false;
 });
