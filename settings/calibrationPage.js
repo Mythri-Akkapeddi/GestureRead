@@ -192,6 +192,11 @@ function init() {
   els.nextBtn.addEventListener("click", goCapture);
   chrome.runtime.onMessage.addListener(handleLandmarkMessage);
   renderStep();
+  window.addEventListener("beforeunload", () => {
+    if (isCapturing && targetTabId) {
+      chrome.tabs.sendMessage(targetTabId, { type: MESSAGE_TYPES.STOP_CALIBRATION_CAPTURE });
+    }
+  });
 }
 
 function sleep(ms) {
