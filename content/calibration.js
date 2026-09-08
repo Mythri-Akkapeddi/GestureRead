@@ -45,15 +45,17 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === MESSAGE_TYPES.START_CALIBRATION_CAPTURE) {
       capturing = true;
+      window.GestureReadGestureEngine?.pauseForCalibration();
       sendResponse({ ok: true });
       return false;
     }
     if (message.type === MESSAGE_TYPES.STOP_CALIBRATION_CAPTURE) {
       capturing = false;
+      window.GestureReadGestureEngine?.resumeFromCalibration();
       sendResponse({ ok: true });
       return false;
     }
-    return false; // let content.js's own listener (if any) handle other types
+    return false;
   });
 
   window.addEventListener("gestureread:landmarks", handleLandmarksFrame);
