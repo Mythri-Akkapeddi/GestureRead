@@ -43,6 +43,7 @@
   const BRIGHTNESS_EXIT_STABILITY_FRAMES = 2; // thumbOnly is a strict "all 4 curled" AND, so it flickers more easily than scroll's looser >=3 threshold, needs a debounce on exit
 
   let enabled = true;
+  let calibrating = false; // fully suppresses dispatch (including toggle) while a calibration capture is in progress
 
   // Single source of truth: null | "scroll" | "pinch" | "brightness".
   let activeGesture = null;
@@ -360,6 +361,7 @@
   }
 
   function handleLandmarksFrame(event) {
+    if (calibrating) return;
     const landmarks = event.detail?.landmarks;
 
     if (!landmarks) {
@@ -422,6 +424,18 @@
       brightnessExitStreak = 0;
       resetPointDetection();
     },
+    pauseForCalibration: () => {
+      calibrating = true;
+      // Nothing should be left "stuck" active once live dispatch resumes.
+      activeGesture = null;
+      lastPalmY = null;
+      lastPinchDistance = null;
+      lastThumbY = null;
+      brightnessExitStreak = 0;
+      resetPointDetection();
+      resetToggleDetection();
+    },
+    resumeFromCalibration: () => { calibrating = false; },
     isEnabled: () => enabled, // exposed for manual console testing
     classifyPose, // exposed for manual console testing
   };
