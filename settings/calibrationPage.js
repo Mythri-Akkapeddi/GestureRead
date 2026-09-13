@@ -8,16 +8,16 @@ const targetTabId = Number(new URLSearchParams(location.search).get("tabId"));
 const STEPS = [
   { id: "scroll", label: "Scroll", emoji: "🖐️",
     instructions: "Hold your hand open, palm facing the camera, fingers spread, and move it slowly up and down.",
-    extractSignal: (lm) => lm[0].y }, // wrist Y— baseline for natural hand jitter
+    extractSignal: (lm) => lm[0].y },
   { id: "pinch", label: "Zoom (Pinch)", emoji: "🤏",
     instructions: "Bring your thumb and index finger together like you're pinching something, and hold it.",
-    extractSignal: (lm) => euclideanDistance(lm[4], lm[8]) }, // thumb tip <-> index tip
+    extractSignal: (lm) => euclideanDistance(lm[4], lm[8]) },
   { id: "brightness", label: "Brightness", emoji: "👍",
     instructions: "Make a fist with just your thumb sticking out, then move your thumb up and down.",
-    extractSignal: (lm) => lm[4].y }, // thumb tip Y
+    extractSignal: (lm) => lm[4].y },
   { id: "point", label: "Point", emoji: "👆",
     instructions: "Extend only your index finger, other fingers curled, and hold still.",
-    extractSignal: null }, // proves the pipeline, no numeric threshold yet
+    extractSignal: null },
   { id: "fist", label: "Fist", emoji: "✊",
     instructions: "Curl all fingers into a closed fist and hold still.",
     extractSignal: null },
@@ -28,8 +28,9 @@ const STEPS = [
 
 let currentStep = 0;
 let isCapturing = false;
+let capturedThisStep = false;
 let liveSamples = [];
-const results = STEPS.map((s) => ({ id: s.id, skipped: true, samples: [] }));
+let results = STEPS.map((s) => ({ id: s.id, skipped: true, samples: [] }));
 
 const els = {};
 
@@ -45,6 +46,7 @@ function cacheElements() {
   els.nextBtn = document.getElementById("gr-next-btn");
   els.doneScreen = document.getElementById("gr-done-screen");
   els.wizard = document.getElementById("gr-wizard");
+  els.recalibrateBtn = document.getElementById("gr-recalibrate-btn");
 }
 
 function renderProgressDots() {
@@ -58,6 +60,7 @@ function renderProgressDots() {
 
 function renderStep() {
   const step = STEPS[currentStep];
+  capturedThisStep = false;
   els.stepLabel.textContent = `Step ${currentStep + 1} of ${STEPS.length}`;
   els.emoji.textContent = step.emoji;
   els.title.textContent = step.label;
@@ -96,11 +99,23 @@ function goBack() {
   }
 }
 
+// Single entry point for the Next button. Before a capture exists for this step, it captures.
+// Once it does, it advances. 
+function handleNextClick() {
+  if (isCapturing) return;
+  if (!capturedThisStep) {
+    goCapture();
+  } else {
+    advance();
+  }
+}
+
 async function goCapture() {
   if (isCapturing || !targetTabId) {
     if (!targetTabId) console.error("[GestureRead] no tabId in URL — open this page via the popup's Calibrate button.");
     return;
   }
+  const stepIndexAtStart = currentStep; // snapshot — guards against currentStep changing mid-capture
   isCapturing = true;
   els.nextBtn.disabled = true;
   els.skipBtn.disabled = true;
@@ -122,21 +137,22 @@ async function goCapture() {
   clearInterval(liveCounterInterval);
   await chrome.tabs.sendMessage(targetTabId, { type: MESSAGE_TYPES.STOP_CALIBRATION_CAPTURE });
 
-  const step = STEPS[currentStep];
+  const step = STEPS[stepIndexAtStart];
   const samples = step.extractSignal
     ? liveSamples.map(step.extractSignal).filter((v) => typeof v === "number")
     : liveSamples;
 
-  results[currentStep] = { id: step.id, skipped: false, samples };
-  els.countdown.textContent = `✓ Captured ${liveSamples.length} frames`;
-
+  results[stepIndexAtStart] = { id: step.id, skipped: false, samples };
   isCapturing = false;
+
+  if (stepIndexAtStart !== currentStep) return;
+
+  els.countdown.textContent = `✓ Captured ${liveSamples.length} frames`;
+  capturedThisStep = true;
   els.nextBtn.disabled = false;
   els.nextBtn.textContent = currentStep === STEPS.length - 1 ? "Finish" : "Next →";
   els.backBtn.disabled = false;
   els.skipBtn.disabled = false;
-
-  els.nextBtn.onclick = advance;
 }
 
 function computeThresholds() {
@@ -173,14 +189,31 @@ async function finishWizard() {
   try {
     const response = await chrome.runtime.sendMessage({ type: MESSAGE_TYPES.SAVE_CALIBRATION, payload: profile });
     console.log("[GestureRead] calibration saved:", response);
+
+    if (targetTabId) {
+      try {
+        await chrome.tabs.sendMessage(targetTabId, { type: MESSAGE_TYPES.CALIBRATION_UPDATED });
+        console.log("[GestureRead] notified tab", targetTabId, "to reload calibration");
+      } catch (err) {
+        console.warn("[GestureRead] could not notify tab to reload calibration:", err.message);
+      }
+    }
   } catch (err) {
     console.error("[GestureRead] failed to save calibration:", err);
   }
 }
 
+function restartWizard() {
+  currentStep = 0;
+  results = STEPS.map((s) => ({ id: s.id, skipped: true, samples: [] }));
+  els.doneScreen.classList.add("gr-hidden");
+  els.wizard.classList.remove("gr-hidden");
+  renderStep();
+}
+
 function handleLandmarkMessage(message, sender) {
   if (message.type !== MESSAGE_TYPES.CALIBRATION_LANDMARK_FRAME) return;
-  if (sender.tab?.id !== targetTabId) return; // only trust the tab we're calibrating
+  if (sender.tab?.id !== targetTabId) return;
   if (!isCapturing) return;
   if (message.payload?.landmarks) liveSamples.push(message.payload.landmarks);
 }
@@ -189,7 +222,8 @@ function init() {
   cacheElements();
   els.backBtn.addEventListener("click", goBack);
   els.skipBtn.addEventListener("click", goSkip);
-  els.nextBtn.addEventListener("click", goCapture);
+  els.nextBtn.addEventListener("click", handleNextClick); // single listener
+  els.recalibrateBtn.addEventListener("click", restartWizard);
   chrome.runtime.onMessage.addListener(handleLandmarkMessage);
   renderStep();
   window.addEventListener("beforeunload", () => {
