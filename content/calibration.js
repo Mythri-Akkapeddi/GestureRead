@@ -1,15 +1,39 @@
-// Runs in the content script's isolated world (same constraint as gestureEngine.js, so constants.js is loaded via dynamic import, not a static import).
-// Two responsibilities:
-// 1) On load, ask background for a saved calibration profile and hand it to applyCalibration().
-//    applyCalibration is a stub, gestureEngine.js doesn't read personalized thresholds yet.
-// 2) While the calibration wizard (settings.html) is capturing a gesture on THIS tab, relay live
-//    landmark frames from the "gestureread:landmarks" window event out via chrome.runtime.sendMessage,
-//    so calibrationPage.js (a normal extension page) can read them directly.
+// Runs in the content script's isolated world.
+// 1) On load, fetches the saved calibration profile and merges it over the hardcoded defaults from constants.js, exposing the merged thresholds via window.GestureReadCalibration 
+//    so gestureEngine.js can read live-calibrated values instead of the constants directly.
+// 2) Listens for CALIBRATION_UPDATED (sent by calibrationPage.js right after a save) and
+//    reloads, so a recalibration takes effect on this tab without a page refresh.
+// 3) While the calibration wizard is capturing a gesture on THIS tab, relays live landmark
+//    frames out via chrome.runtime.sendMessage so calibrationPage.js can read them directly.
 
 (async function () {
-  const { MESSAGE_TYPES } = await import(chrome.runtime.getURL("utils/constants.js"));
+  const {
+    MESSAGE_TYPES,
+    PINCH_ENTER,
+    PINCH_EXIT,
+    BRIGHTNESS_MOVE_THRESHOLD,
+  } = await import(chrome.runtime.getURL("utils/constants.js"));
+
+  const DEFAULT_THRESHOLDS = {
+    pinchEnter: PINCH_ENTER,
+    pinchExit: PINCH_EXIT,
+    brightnessMoveThreshold: BRIGHTNESS_MOVE_THRESHOLD,
+  };
 
   let capturing = false;
+  let currentThresholds = { ...DEFAULT_THRESHOLDS };
+
+  function mergeThresholds(profile) {
+    if (!profile) return { ...DEFAULT_THRESHOLDS };
+    return {
+      pinchEnter: typeof profile.pinchEnter === "number" ? profile.pinchEnter : DEFAULT_THRESHOLDS.pinchEnter,
+      pinchExit: typeof profile.pinchExit === "number" ? profile.pinchExit : DEFAULT_THRESHOLDS.pinchExit,
+      brightnessMoveThreshold:
+        typeof profile.brightnessMoveThreshold === "number"
+          ? profile.brightnessMoveThreshold
+          : DEFAULT_THRESHOLDS.brightnessMoveThreshold,
+    };
+  }
 
   async function loadCalibration() {
     try {
@@ -26,12 +50,16 @@
   }
 
   function applyCalibration(profile) {
+    currentThresholds = mergeThresholds(profile);
     if (!profile) {
-      console.log("[GestureRead] no saved calibration profile — using default thresholds.");
+      console.log("[GestureRead] no saved calibration profile — using default thresholds:", currentThresholds);
       return;
     }
-    // Stub, later day wires this into gestureEngine.js's live thresholds.
-    console.log("[GestureRead] loaded calibration profile (not yet applied to gestureEngine):", profile);
+    console.log("[GestureRead] calibration profile applied:", currentThresholds);
+  }
+
+  async function reloadCalibration() {
+    applyCalibration(await loadCalibration());
   }
 
   function handleLandmarksFrame(event) {
@@ -55,10 +83,19 @@
       sendResponse({ ok: true });
       return false;
     }
+    if (message.type === MESSAGE_TYPES.CALIBRATION_UPDATED) {
+      reloadCalibration();
+      sendResponse({ ok: true });
+      return false;
+    }
     return false;
   });
 
   window.addEventListener("gestureread:landmarks", handleLandmarksFrame);
 
-  loadCalibration().then(applyCalibration);
+  window.GestureReadCalibration = {
+    getThresholds: () => currentThresholds,
+  };
+
+  reloadCalibration();
 })();
