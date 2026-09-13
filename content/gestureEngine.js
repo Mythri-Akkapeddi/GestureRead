@@ -9,13 +9,23 @@
 
 (async function () {
   const {
-    PINCH_ENTER,
-    PINCH_EXIT,
-    BRIGHTNESS_MOVE_THRESHOLD,
+    PINCH_ENTER: DEFAULT_PINCH_ENTER,
+    PINCH_EXIT: DEFAULT_PINCH_EXIT,
+    BRIGHTNESS_MOVE_THRESHOLD: DEFAULT_BRIGHTNESS_MOVE_THRESHOLD,
     BRIGHTNESS_SENSITIVITY,
     POINT_HOLD_MS,
     TOGGLE_HOLD_MS,
   } = await import(chrome.runtime.getURL("utils/constants.js"));
+
+  // Reads live-calibrated thresholds if calibration.js has loaded a profile, otherwise falls back to the hardcoded defaults above. Read fresh on every call (never cached at IIFE top-level) so a mid-session recalibration takes effect on the very next frame.
+  function getThresholds() {
+    const calibrated = window.GestureReadCalibration?.getThresholds();
+    return {
+      pinchEnter: calibrated?.pinchEnter ?? DEFAULT_PINCH_ENTER,
+      pinchExit: calibrated?.pinchExit ?? DEFAULT_PINCH_EXIT,
+      brightnessMoveThreshold: calibrated?.brightnessMoveThreshold ?? DEFAULT_BRIGHTNESS_MOVE_THRESHOLD,
+    };
+  }
 
   const WRIST = 0;
   const THUMB_TIP = 4;
@@ -162,7 +172,7 @@
   function classifyPose(landmarks) {
     if (!landmarks || landmarks.length < 21) return null;
     const pinchDist = euclideanDistance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]);
-    if (activeGesture === "pinch" || pinchDist < PINCH_ENTER) return "pinch";
+    if (activeGesture === "pinch" || pinchDist < getThresholds().pinchEnter) return "pinch";
     if (activeGesture === "brightness" || isThumbOnlyPose(landmarks)) return "thumbOnly";
     if (isPeacePose(landmarks)) return "peace";
     if (isPointPose(landmarks)) return "point";
@@ -208,7 +218,7 @@
     const dist = euclideanDistance(landmarks[THUMB_TIP], landmarks[INDEX_TIP]);
 
     // Hysteresis exit, must open back out past PINCH_EXIT (0.18), not just above PINCH_ENTER (0.08), so a natural zoom-out doesn't drop the gesture mid-motion.
-    if (dist > PINCH_EXIT) {
+    if (dist > getThresholds().pinchExit) {
       activeGesture = null;
       lastPinchDistance = null;
       console.log("[GestureRead] pinch released");
@@ -248,7 +258,7 @@
 
     const deltaY = thumbY - lastThumbY;
     lastThumbY = thumbY;
-    if (Math.abs(deltaY) < BRIGHTNESS_MOVE_THRESHOLD || Math.abs(deltaY) > MAX_BRIGHTNESS_FRAME_DELTA) return;
+    if (Math.abs(deltaY) < getThresholds().brightnessMoveThreshold || Math.abs(deltaY) > MAX_BRIGHTNESS_FRAME_DELTA) return;
 
     // Normalized Y increases downward, so moving the thumb UP (deltaY negative) should brighten.
     const change = -deltaY * BRIGHTNESS_SENSITIVITY;
@@ -438,5 +448,6 @@
     resumeFromCalibration: () => { calibrating = false; },
     isEnabled: () => enabled, // exposed for manual console testing
     classifyPose, // exposed for manual console testing
+    getThresholds,
   };
 })();
