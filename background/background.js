@@ -3,6 +3,7 @@
 
 import { MESSAGE_TYPES } from "../utils/constants.js";
 import { handleStorageMessage } from "./storage.js";
+import { handleGestureLogBatch } from "./analyticsManager.js";
 
 console.log("[GestureRead] background service worker started.");
 
@@ -48,6 +49,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === MESSAGE_TYPES.CALIBRATION_LANDMARK_FRAME) {
     return false; // not for background, calibrationPage.js listens for this directly
+  }
+
+  if (message.type === MESSAGE_TYPES.LOG_GESTURE_BATCH) {
+    handleGestureLogBatch(message)
+      .then(sendResponse)
+      .catch((err) => {
+        console.error("[GestureRead] gesture log batch failed:", err);
+        sendResponse({ ok: false, error: err.message });
+      });
+    return true;
   }
 
   sendResponse({ ok: false, error: `Unknown message type: ${message.type}` });
