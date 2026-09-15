@@ -193,10 +193,17 @@
     return currentPose;
   }
 
+  // Simple confidence: how many consecutive stable frames confirmed this pose relative to the minimum required (POSE_STABILITY_FRAMES). 
+  // A real ML confidence score can replace this later without touching any call sites.
+  function confidenceFromStreak() {
+    return Math.min(candidateStreak / POSE_STABILITY_FRAMES, 1);
+  }
+
   function runScroll(landmarks) {
     if (rawFingerPose(landmarks) !== "open") {
       activeGesture = null;
       lastPalmY = null;
+      window.GestureReadLogger?.log("scroll_release", 1);
       return;
     }
 
@@ -222,6 +229,7 @@
       activeGesture = null;
       lastPinchDistance = null;
       console.log("[GestureRead] pinch released");
+      window.GestureReadLogger?.log("pinch_release", 1);
       return;
     }
 
@@ -245,6 +253,7 @@
         lastThumbY = null;
         brightnessExitStreak = 0;
         console.log("[GestureRead] brightness released");
+        window.GestureReadLogger?.log("brightness_release", 1);
       }
       return;
     }
@@ -275,6 +284,7 @@
     lastPinchDistance = dist;
     markTriggered("pinchEngage");
     console.log("[GestureRead] pinch engaged");
+    window.GestureReadLogger?.log("pinch_engage", confidenceFromStreak());
     return true;
   }
 
@@ -284,6 +294,7 @@
       lastThumbY = landmarks[THUMB_TIP].y;
       brightnessExitStreak = 0;
       console.log("[GestureRead] brightness engaged");
+      window.GestureReadLogger?.log("brightness_engage", confidenceFromStreak());
       return true;
     }
     return false;
@@ -293,6 +304,7 @@
     if (stablePose === "open") {
       activeGesture = "scroll";
       lastPalmY = landmarks[WRIST].y;
+      window.GestureReadLogger?.log("scroll_engage", confidenceFromStreak());
       return true;
     }
     return false;
@@ -323,6 +335,7 @@
 
   function sendPointStatus(active) {
     window.GestureReadOverlay?.setPointStatus(active);
+    window.GestureReadLogger?.log(active ? "point_detected" : "point_lost", 1);
   }
 
   // On/off toggle (peace-sign hold)
@@ -351,6 +364,7 @@
   function performToggle() {
     enabled = !enabled;
     console.log("[GestureRead] toggle held — extension now", enabled ? "ON" : "OFF");
+    window.GestureReadLogger?.log("toggle", 1, { enabledAfter: enabled });
 
     if (!enabled) {
       // Nothing should be left "stuck" active when gestures resume.
