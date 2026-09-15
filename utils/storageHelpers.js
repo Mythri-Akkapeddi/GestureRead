@@ -78,6 +78,42 @@ export async function clearLogs() {
   return setValue(STORAGE_KEYS.GESTURE_LOGS, []);
 }
 
+
+// --- Gesture logs (batch, used by analyticsManager.js) ---
+export async function appendGestureLogs(entries) {
+  const logs = await getValue(STORAGE_KEYS.GESTURE_LOGS, []);
+  logs.push(...entries);
+
+  const trimmed =
+    logs.length > MAX_GESTURE_LOGS ? logs.slice(logs.length - MAX_GESTURE_LOGS) : logs;
+
+  const ok = await setValue(STORAGE_KEYS.GESTURE_LOGS, trimmed);
+  if (!ok) {
+    console.warn("[GestureRead] Storage write failed (batch). Attempting emergency trim.");
+    const emergencyTrim = trimmed.slice(Math.floor(trimmed.length / 2));
+    await setValue(STORAGE_KEYS.GESTURE_LOGS, emergencyTrim);
+    return emergencyTrim;
+  }
+  return trimmed;
+}
+
+// --- Running gesture counters (cheap dashboard reads without re-scanning the full log) ---
+export async function getGestureCounters() {
+  return getValue(STORAGE_KEYS.GESTURE_COUNTERS, {});
+}
+
+export async function incrementGestureCounters(entries) {
+  const counters = await getValue(STORAGE_KEYS.GESTURE_COUNTERS, {});
+  for (const entry of entries) {
+    if (!entry?.type) continue;
+    counters[entry.type] = (counters[entry.type] || 0) + 1;
+  }
+  counters.lastEventAt = Date.now();
+  await setValue(STORAGE_KEYS.GESTURE_COUNTERS, counters);
+  return counters;
+}
+
+
 // --- User preferences ---
 export async function getUserPreferences() {
   return getValue(STORAGE_KEYS.USER_PREFERENCES, {});
