@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   USER_PREFERENCES: "userPreferences",
   LLM_MODEL: "llmModel",
   EXTENSION_ENABLED: "extensionEnabled",
+  GESTURE_COUNTERS: "gestureCounters",
 };
 
 export const MESSAGE_TYPES = {
