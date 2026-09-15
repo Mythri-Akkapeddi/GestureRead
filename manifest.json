@@ -39,6 +39,7 @@
       "js": [
         "utils/helpers.js",
         "utils/math.js",
+        "analytics/logger.js",
         "content/overlayController.js",
         "content/pageNavigator.js",
         "content/gestureEngine.js",
