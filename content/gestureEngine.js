@@ -20,10 +20,20 @@
   // Reads live-calibrated thresholds if calibration.js has loaded a profile, otherwise falls back to the hardcoded defaults above. Read fresh on every call (never cached at IIFE top-level) so a mid-session recalibration takes effect on the very next frame.
   function getThresholds() {
     const calibrated = window.GestureReadCalibration?.getThresholds();
+    const basePinchEnter = calibrated?.pinchEnter ?? DEFAULT_PINCH_ENTER;
+    const basePinchExit = calibrated?.pinchExit ?? DEFAULT_PINCH_EXIT;
+    const baseBrightness = calibrated?.brightnessMoveThreshold ?? DEFAULT_BRIGHTNESS_MOVE_THRESHOLD;
+
+    // layer the adaptive sensitivity multiplier on top of calibration.
+    // >1 = fires more easily ("loosened"), <1 = harder to fire ("tightened").
+    const pinchMultiplier = window.GestureReadAdaptiveThresholds?.getMultiplier("pinch") ?? 1.0;
+    const brightnessMultiplier = window.GestureReadAdaptiveThresholds?.getMultiplier("brightness") ?? 1.0;
+    const scrollMultiplier = window.GestureReadAdaptiveThresholds?.getMultiplier("scroll") ?? 1.0;
     return {
-      pinchEnter: calibrated?.pinchEnter ?? DEFAULT_PINCH_ENTER,
-      pinchExit: calibrated?.pinchExit ?? DEFAULT_PINCH_EXIT,
-      brightnessMoveThreshold: calibrated?.brightnessMoveThreshold ?? DEFAULT_BRIGHTNESS_MOVE_THRESHOLD,
+      pinchEnter: basePinchEnter * pinchMultiplier,                 // larger allowed distance makes it easier to engage
+      pinchExit: basePinchExit,
+      brightnessMoveThreshold: baseBrightness / brightnessMultiplier, // smaller required movement is easier
+      scrollMoveThreshold: SCROLL_MOVE_THRESHOLD / scrollMultiplier,  // same for scroll
     };
   }
 
@@ -215,7 +225,7 @@
 
     const deltaY = palmY - lastPalmY;
     lastPalmY = palmY;
-    if (Math.abs(deltaY) < SCROLL_MOVE_THRESHOLD) return;
+    if (Math.abs(deltaY) < getThresholds().scrollMoveThreshold) return;
 
     const scrollAmount = clamp(deltaY * SCROLL_SPEED_MULTIPLIER, -MAX_SCROLL_PER_FRAME, MAX_SCROLL_PER_FRAME);
     window.scrollBy(0, scrollAmount);
