@@ -48,3 +48,15 @@ export const POINT_HOLD_MS = 800; // how long "point" must hold before it's conf
 
 // Toggle gesture tuning
 export const TOGGLE_HOLD_MS = 2000; // peace-sign hold duration required to flip on/off
+
+// Adaptive threshold engine tuning
+export const FP_WINDOW_MS = 60000;             // rolling window used to compute the false-positive rate
+export const FP_CHECK_INTERVAL_MS = 60000;     // how often the adaptive engine re-evaluates
+export const FP_THRESHOLD_RATE = 0.3;          // tighten if FP rate above this
+export const FP_LOOSEN_RATE = 0.1;             // loosen if FP rate below this
+export const MIN_INTENTIONAL_GESTURE_MS = 400; // if engage->release faster than this then treated as accidental
+export const MIN_SAMPLES_FOR_ADAPTATION = 5;   // don't trust a rate computed from too few cycles
+export const ADAPTIVE_TIGHTEN_STEP = 0.05;     // 5% tighten per cycle
+export const ADAPTIVE_LOOSEN_STEP = 0.025;     // loosens more slowly than it tightens
+export const ADAPTIVE_MIN_MULTIPLIER = 0.5;    // hard floor
+export const ADAPTIVE_MAX_MULTIPLIER = 1.5;    // hard ceiling
