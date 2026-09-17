@@ -40,6 +40,7 @@
         "utils/helpers.js",
         "utils/math.js",
         "analytics/logger.js",
+        "content/adaptiveThresholds.js",
         "content/overlayController.js",
         "content/pageNavigator.js",
         "content/gestureEngine.js",
