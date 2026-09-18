@@ -5,6 +5,12 @@
   const poseLabel = document.getElementById("gr-pose-label");
   const panel = document.getElementById("gr-hud-panel");
 
+  function formatBadgeMessage(entry) {
+    const label = entry.gesture.charAt(0).toUpperCase() + entry.gesture.slice(1);
+    const sign = entry.direction === "loosened" ? "+" : "-";
+    return `Calibrated ✓ — ${label} threshold ${entry.direction} (${sign}${entry.percent}%)`;
+  }
+
   window.addEventListener("message", (event) => {
     const data = event.data;
     if (!data || data.source !== "gestureread-content") return;
@@ -39,6 +45,11 @@
       if (statusDot) statusDot.classList.toggle("on", enabled);
       if (panel) panel.classList.toggle("gr-disabled", !enabled);
       window.GestureReadSkeleton?.setVisible(enabled);
+      return;
+    }
+
+    if (data.type === "THRESHOLD_ADAPTED") {
+      window.GestureReadNotifications?.showBadge(formatBadgeMessage(data.payload));
       return;
     }
   });
