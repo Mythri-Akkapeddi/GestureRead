@@ -86,6 +86,15 @@
         window.GestureReadLogger?.log("threshold_adapted", null, {
           gesture, direction, percent, multiplier: multipliers[gesture], fpRate: rate, sampleSize,
         });
+
+        const entry = buildThresholdHistoryEntry({
+          gesture, direction, percent, multiplier: multipliers[gesture], fpRate: rate, sampleSize,
+        });
+
+        window.GestureReadOverlay?.notifyThresholdAdapted(entry);
+
+        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.THRESHOLD_ADAPTED, payload: entry })
+          .catch((err) => console.warn("[GestureRead] failed to persist threshold history:", err.message));
       }
     }
   }
