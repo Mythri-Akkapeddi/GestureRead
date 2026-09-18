@@ -188,6 +188,14 @@
     );
   }
 
+  function notifyThresholdAdapted(entry) {
+    if (!overlayFrame || !overlayFrame.contentWindow) return;
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "THRESHOLD_ADAPTED", payload: entry },
+      "*"
+    );
+  }
+
   window.GestureReadOverlay = {
     init: initOverlay,
     ping: pingOverlay,
@@ -196,5 +204,6 @@
     setBrightness,
     setPointStatus,
     setEnabledVisual,
+    notifyThresholdAdapted,
   };
 })();
