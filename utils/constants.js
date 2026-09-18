@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   LLM_MODEL: "llmModel",
   EXTENSION_ENABLED: "extensionEnabled",
   GESTURE_COUNTERS: "gestureCounters",
+  THRESHOLD_HISTORY: "thresholdHistory",
 };
 
 export const MESSAGE_TYPES = {
@@ -28,6 +29,7 @@ export const MESSAGE_TYPES = {
   CALIBRATION_LANDMARK_FRAME: "CALIBRATION_LANDMARK_FRAME",
   CALIBRATION_UPDATED: "CALIBRATION_UPDATED", // to reload thresholds
   LOG_GESTURE_BATCH: "LOG_GESTURE_BATCH", 
+  THRESHOLD_ADAPTED: "THRESHOLD_ADAPTED",
 };
 
 // Cap on stored gesture log entries, trims oldest logs so we never hit chrome.storage.local's quota mid-session.
@@ -60,3 +62,6 @@ export const ADAPTIVE_TIGHTEN_STEP = 0.05;     // 5% tighten per cycle
 export const ADAPTIVE_LOOSEN_STEP = 0.025;     // loosens more slowly than it tightens
 export const ADAPTIVE_MIN_MULTIPLIER = 0.5;    // hard floor
 export const ADAPTIVE_MAX_MULTIPLIER = 1.5;    // hard ceiling
+
+// Threshold adaptation persistence (Day 20)
+export const MAX_THRESHOLD_HISTORY = 100; // cap so this never grows unbounded in storage
