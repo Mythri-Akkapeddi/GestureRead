@@ -3,7 +3,7 @@
 // This gives GestureRead one consistent storage layer.
 
 
-import { STORAGE_KEYS, MAX_GESTURE_LOGS } from "./constants.js";
+import { STORAGE_KEYS, MAX_GESTURE_LOGS, MAX_THRESHOLD_HISTORY } from "./constants.js";
 
 async function getValue(key, fallback) {
   const result = await chrome.storage.local.get(key);
@@ -111,6 +111,22 @@ export async function incrementGestureCounters(entries) {
   counters.lastEventAt = Date.now();
   await setValue(STORAGE_KEYS.GESTURE_COUNTERS, counters);
   return counters;
+}
+
+// --- Adaptive threshold ---
+export async function getThresholdHistory() {
+  return getValue(STORAGE_KEYS.THRESHOLD_HISTORY, []);
+}
+
+export async function appendThresholdHistory(entry) {
+  const history = await getValue(STORAGE_KEYS.THRESHOLD_HISTORY, []);
+  history.push(entry);
+
+  const trimmed =
+    history.length > MAX_THRESHOLD_HISTORY ? history.slice(history.length - MAX_THRESHOLD_HISTORY) : history;
+
+  await setValue(STORAGE_KEYS.THRESHOLD_HISTORY, trimmed);
+  return trimmed;
 }
 
 
