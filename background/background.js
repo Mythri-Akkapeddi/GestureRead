@@ -4,6 +4,7 @@
 import { MESSAGE_TYPES } from "../utils/constants.js";
 import { handleStorageMessage } from "./storage.js";
 import { handleGestureLogBatch } from "./analyticsManager.js";
+import { handleThresholdAdapted } from "./sessionManager.js";
 
 console.log("[GestureRead] background service worker started.");
 
@@ -56,6 +57,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .then(sendResponse)
       .catch((err) => {
         console.error("[GestureRead] gesture log batch failed:", err);
+        sendResponse({ ok: false, error: err.message });
+      });
+    return true;
+  }
+
+  if (message.type === MESSAGE_TYPES.THRESHOLD_ADAPTED) {
+    handleThresholdAdapted(message)
+      .then(sendResponse)
+      .catch((err) => {
+        console.error("[GestureRead] threshold history save failed:", err);
         sendResponse({ ok: false, error: err.message });
       });
     return true;
