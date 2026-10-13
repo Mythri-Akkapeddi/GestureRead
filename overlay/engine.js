@@ -12,6 +12,10 @@
   const MODEL_PATH = "assets/mediapipe/hand_landmarker.task";
   const WASM_DIR_PATH = "assets/mediapipe/wasm";
 
+  // throttle variance pushes — don't need these at 60fps, a few times a second is plenty and keeps the postMessage channel from being dominated by fatigue data on top of landmark frames.
+  const VARIANCE_SEND_INTERVAL_MS = 500;
+  let lastVarianceSentAt = 0;
+
   async function init() {
     if (running) {
       console.log("[GestureRead] gesture engine already running.");
@@ -76,6 +80,24 @@
     rafId = requestAnimationFrame(loop);
   }
 
+  function maybeSendVariance() {
+    const now = performance.now();
+    if (now - lastVarianceSentAt < VARIANCE_SEND_INTERVAL_MS) return;
+    lastVarianceSentAt = now;
+
+    const positionVariance = window.GestureReadSmoothing?.getWristPositionVariance() ?? 0;
+    const velocityVariance = window.GestureReadSmoothing?.getWristVelocityVariance() ?? 0;
+
+    window.parent.postMessage(
+      {
+        source: "gestureread-overlay",
+        type: "VARIANCE_FRAME",
+        payload: { positionVariance, velocityVariance },
+      },
+      "*"
+    );
+  }
+
   function detectFrame() {
     if (!handLandmarker || !videoEl || videoEl.readyState < 2) return;
 
@@ -92,6 +114,9 @@
         { source: "gestureread-overlay", type: "LANDMARKS_FRAME", payload: { landmarks: smoothed } },
         "*"
       );
+
+      // Only meaningful while a hand is actually present, no sense scoring fatigue on an empty frame.
+      maybeSendVariance();
     } else {
       window.GestureReadSkeleton?.clear();
       window.parent.postMessage(
@@ -106,6 +131,7 @@
     if (rafId) cancelAnimationFrame(rafId);
     if (videoEl?.srcObject) videoEl.srcObject.getTracks().forEach((t) => t.stop());
     window.GestureReadSkeleton?.clear();
+    window.GestureReadSmoothing?.reset();
     console.log("[GestureRead] gesture engine stopped.");
   }
 
