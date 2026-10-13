@@ -1,6 +1,6 @@
 // Runs inside the overlay iframe alongside engine.js
 // Rolling average over the last N landmark frames (N=5 default), averages each of the 21 landmark points' x/y/z across the history window to cut jitter from raw MediaPipe output.
-// getJitterVariance computes from wrist-Y spread across the current history window using standardDeviation from utils/math.js. Nothing uses it yet, fatigueMonitor.js will
+// getWristPositionVariance / getWristVelocityVariance compute from the RAW (pre-smoothing) history window, since smoothed data would mask the jitter fatigueMonitor.js is trying to detect.
 
 (function () {
   const DEFAULT_HISTORY_SIZE = 5;
@@ -45,11 +45,25 @@
     return averaged;
   }
 
-  function getJitterVariance() {
+  // Position (tremor) variance: how much the wrist's Y position spreads out across the current history window. A steady hand holds this low; fatigue/shake pushes it up.
+  function getWristPositionVariance() {
     if (history.length < 2) return 0;
-    // Landmark 0 = wrist.
     const wristYs = history.map((frame) => frame[0].y);
-    return standardDeviation(wristYs);
+    return computeVariance(wristYs);
+  }
+
+  // Velocity variance: how much frame-to-frame wrist displacement varies. Distinct from position variance — a slow steady drift has low velocity variance even with some position spread; a jittery shake has high velocity variance.
+  function getWristVelocityVariance() {
+    if (history.length < 3) return 0;
+    const velocities = [];
+    for (let i = 1; i < history.length; i++) {
+      velocities.push(euclideanDistance(history[i - 1][0], history[i][0]));
+    }
+    return computeVariance(velocities);
+  }
+
+  function getJitterVariance() {
+    return getWristPositionVariance();
   }
 
   function reset() {
@@ -59,6 +73,8 @@
   window.GestureReadSmoothing = {
     addFrame,
     getJitterVariance,
+    getWristPositionVariance,
+    getWristVelocityVariance,
     setHistorySize,
     reset,
   };
