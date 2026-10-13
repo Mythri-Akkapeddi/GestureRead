@@ -1,4 +1,4 @@
-// Small math helpers shared by gestureEngine.js and later fatigueMonitor.js
+// Small math helpers shared by gestureEngine.js, adaptiveThresholds.js, and fatigueMonitor.js
 // No import/export, loaded before overlayController.js / gestureEngine.js by manifest.json.
 
 function euclideanDistance(a, b) {
@@ -9,13 +9,16 @@ function euclideanDistance(a, b) {
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-function standardDeviation(values) {
-  // Used properly by fatigueMonitor.js (wrist position / velocity variance).
+function computeVariance(values) {
   if (!values || values.length === 0) return 0;
   const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
+  return values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
 }
+
+function standardDeviation(values) {
+  return Math.sqrt(computeVariance(values));
+}
+
 function rollingMean(values) {
   if (!values || values.length === 0) return 0;
   return values.reduce((sum, v) => sum + v, 0) / values.length;
