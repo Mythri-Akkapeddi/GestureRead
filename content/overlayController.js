@@ -136,6 +136,12 @@
       window.dispatchEvent(new CustomEvent("gestureread:landmarks", { detail: data.payload }));
       return;
     }
+
+    if (data.type === "VARIANCE_FRAME") {
+      window.dispatchEvent(new CustomEvent("gestureread:variance", { detail: data.payload }));
+      return;
+    }
+    
   });
 
   function startEngine() {
