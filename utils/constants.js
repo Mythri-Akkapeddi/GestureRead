@@ -63,5 +63,12 @@ export const ADAPTIVE_LOOSEN_STEP = 0.025;     // loosens more slowly than it ti
 export const ADAPTIVE_MIN_MULTIPLIER = 0.5;    // hard floor
 export const ADAPTIVE_MAX_MULTIPLIER = 1.5;    // hard ceiling
 
-// Threshold adaptation persistence (Day 20)
+// Threshold adaptation persistence
 export const MAX_THRESHOLD_HISTORY = 100; // cap so this never grows unbounded in storage
+
+// Fatigue detection tuning
+export const FATIGUE_BASELINE_SECONDS = 60;       // first 60s of variance readings become this user's personal baseline
+export const FATIGUE_CHECK_INTERVAL_MS = 2000;    // how often to recompute/log the fatigue score once baseline is set
+export const FATIGUE_MULTIPLIER_THRESHOLD = 2.0;  // score at/above this multiplier = flagged as fatigued
+export const FATIGUE_POSITION_WEIGHT = 0.5;       // weight of position variance in the combined score
+export const FATIGUE_VELOCITY_WEIGHT = 0.5;       // weight of velocity variance in the combined score
