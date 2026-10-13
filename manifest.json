@@ -46,6 +46,7 @@
         "content/pageNavigator.js",
         "content/gestureEngine.js",
         "content/calibration.js",
+        "content/fatigueMonitor.js",
         "content/content.js"
       ],
       "run_at": "document_idle"
