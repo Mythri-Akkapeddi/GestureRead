@@ -40,6 +40,21 @@
       return;
     }
 
+    if (data.type === "FATIGUE_DETECTED") {
+      window.GestureReadNotifications?.showFatigueNudge(data.payload?.score ?? 0);
+      return;
+    }
+
+    if (data.type === "CORRECTION_AVAILABLE") {
+      window.GestureReadNotifications?.showCorrectionPrompt(data.payload?.gesture);
+      return;
+    }
+
+    if (data.type === "CORRECTION_EXPIRED") {
+      window.GestureReadNotifications?.hideCorrectionPrompt(data.payload?.gesture);
+      return;
+    }
+
     if (data.type === "SET_ENABLED_VISUAL") {
       const enabled = data.payload?.enabled ?? true;
       if (statusDot) statusDot.classList.toggle("on", enabled);
