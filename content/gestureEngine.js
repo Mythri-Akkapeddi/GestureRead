@@ -63,6 +63,7 @@
   const BRIGHTNESS_EXIT_STABILITY_FRAMES = 2; // thumbOnly is a strict "all 4 curled" AND, so it flickers more easily than scroll's looser >=3 threshold, needs a debounce on exit
 
   let enabled = true;
+  let reducedPrecision = false;
   let calibrating = false; // fully suppresses dispatch (including toggle) while a calibration capture is in progress
 
   // Single source of truth: null | "scroll" | "pinch" | "brightness".
@@ -394,6 +395,20 @@
     window.dispatchEvent(new CustomEvent("gestureread:toggle", { detail: { enabled } }));
   }
 
+  function setReducedPrecision(on) {
+    reducedPrecision = on;
+    console.log("[GestureRead] reduced precision mode", on ? "ENABLED (point + brightness disabled)" : "disabled");
+    if (on) {
+      resetPointDetection();
+      if (activeGesture === "brightness") {
+        activeGesture = null;
+        lastThumbY = null;
+        brightnessExitStreak = 0;
+        window.GestureReadLogger?.log("brightness_release", 1, { reason: "reduced_precision" });
+      }
+    }
+  }
+
   function handleLandmarksFrame(event) {
     if (calibrating) return;
     const landmarks = event.detail?.landmarks;
@@ -420,7 +435,9 @@
 
     if (!enabled) return;
 
-    updatePointDetection(stablePose);
+    // updatePointDetection(stablePose);
+
+    if (!reducedPrecision) updatePointDetection(stablePose);
 
     if (activeGesture === "scroll") {
       runScroll(landmarks);
@@ -438,7 +455,7 @@
     }
 
     if (tryEnterPinch(stablePose, landmarks)) return;
-    if (tryEnterBrightness(stablePose, landmarks)) return;
+    if (!reducedPrecision && tryEnterBrightness(stablePose, landmarks)) return;
     tryEnterScroll(stablePose, landmarks);
   }
 
@@ -473,5 +490,7 @@
     isEnabled: () => enabled, // exposed for manual console testing
     classifyPose, // exposed for manual console testing
     getThresholds,
+    setReducedPrecision,
+    isReducedPrecision: () => reducedPrecision,
   };
 })();
