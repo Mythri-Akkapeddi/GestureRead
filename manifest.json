@@ -44,6 +44,7 @@
         "content/adaptiveThresholds.js",
         "content/overlayController.js",
         "content/pageNavigator.js",
+        "content/correctionEngine.js",
         "content/gestureEngine.js",
         "content/calibration.js",
         "content/fatigueMonitor.js",
