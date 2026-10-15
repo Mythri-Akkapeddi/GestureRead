@@ -99,8 +99,15 @@
     }
   }
 
-  // window.GestureReadLogger's own IIFE is async (it dynamic-imports constants.js too), so it may
-  // not exist yet the instant this script runs even though it loads earlier in manifest.json.
+  function recordConfirmedFalsePositive(gesture) {
+    if (!GESTURE_TYPES.includes(gesture)) return;
+    // A user-confirmed undo is stronger signal than our duration heuristic — record it as a
+    // guaranteed-FP sample (duration 0) so it counts fully toward the next adapt() cycle.
+    completedEvents[gesture].push({ duration: 0, timestamp: Date.now() });
+    console.log(`[GestureRead] confirmed false positive recorded for "${gesture}".`);
+  }
+
+  // window.GestureReadLogger's own IIFE is async (it dynamic-imports constants.js too), so it may not exist yet the instant this script runs even though it loads earlier in manifest.json.
   // Same retry pattern content.js uses for the gesture engine.
   function waitForLogger(callback, attemptsLeft = 20) {
     if (window.GestureReadLogger) {
@@ -128,6 +135,7 @@
   window.GestureReadAdaptiveThresholds = {
     getMultiplier: (gesture) => multipliers[gesture] ?? 1.0,
     getAllMultipliers: () => ({ ...multipliers }),
+    recordConfirmedFalsePositive,
     _debugForceAdapt: adapt, // manual console testing
   };
 })();
