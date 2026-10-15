@@ -11,6 +11,7 @@
     notifyBackgroundReady();
     listenForBackgroundMessages();
     listenForToggleGesture();
+    listenForReducedPrecisionResponse();
     loadExtensionState();
   }
 
@@ -85,6 +86,15 @@
       const enabled = event.detail.enabled;
       console.log("[GestureRead] extension toggled via gesture:", enabled ? "ON" : "OFF");
       persistExtensionState(enabled);
+    });
+  }
+
+  function listenForReducedPrecisionResponse() {
+    window.addEventListener("gestureread:reducedprecision", (event) => {
+      const accepted = Boolean(event.detail?.accepted);
+      console.log("[GestureRead] reduced precision response:", accepted ? "accepted" : "declined/timed out");
+      withGestureEngine((engine) => engine.setReducedPrecision(accepted));
+      window.GestureReadLogger?.log("reduced_precision_response", null, { accepted });
     });
   }
 })();
