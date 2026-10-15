@@ -6,9 +6,9 @@
   const { MESSAGE_TYPES } = await import(chrome.runtime.getURL("utils/constants.js"));
 
   const FLUSH_INTERVAL_MS = 2000;
-  const MAX_BUFFER_SIZE = 50; // flush early if this fills up, instead of waiting for the timer
+  const MAX_BUFFER_SIZE = 50;
 
-  const sessionId = generateSessionId(); // from utils/helpers.js, one session per page load
+  const sessionId = generateSessionId();
   let buffer = [];
 
   function log(type, confidence, meta = {}) {
@@ -21,6 +21,22 @@
       ...meta,
     });
     if (buffer.length >= MAX_BUFFER_SIZE) flush();
+  }
+
+  // marks the most recent not-yet-flushed entry of `type` as corrected, if it's still in the local buffer and recent. 
+  // Returns false if it already flushed to background (too late to tag it retroactively) — correctionEngine.js logs a standalone "correction" event in that case instead.
+  function markCorrected(type, withinMs = 10000) {
+    for (let i = buffer.length - 1; i >= 0; i--) {
+      if (buffer[i].type === type) {
+        if (buffer[i].corrected) return false;
+        if (Date.now() - buffer[i].timestamp <= withinMs) {
+          buffer[i].corrected = true;
+          return true;
+        }
+        return false;
+      }
+    }
+    return false;
   }
 
   async function flush() {
@@ -43,7 +59,7 @@
   }
 
   setInterval(flush, FLUSH_INTERVAL_MS);
-  window.addEventListener("pagehide", flush); // best-effort flush on navigation/tab close
+  window.addEventListener("pagehide", flush);
 
-  window.GestureReadLogger = { log, flush, getSessionId: () => sessionId };
+  window.GestureReadLogger = { log, flush, markCorrected, getSessionId: () => sessionId };
 })();
