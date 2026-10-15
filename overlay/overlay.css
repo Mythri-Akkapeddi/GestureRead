@@ -6,6 +6,7 @@ html, body {
   height: 100%;
   overflow: hidden;
   font-family: -apple-system, "Segoe UI", sans-serif;
+  pointer-events: none; /* clicks fall through to the page even while the iframe itself is "auto" */
 }
 
 .gr-panel {
@@ -33,13 +34,13 @@ html, body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ef4444; /* red = not yet connected to content script */
+  background: #ef4444;
   flex-shrink: 0;
   transition: background 0.2s ease;
 }
 
 .gr-status-dot.on {
-  background: #22c55e; /* green = handshake confirmed */
+  background: #22c55e;
 }
 
 #brightness-overlay {
@@ -88,9 +89,61 @@ html, body {
   transform: translateY(-6px);
   transition: opacity 0.2s ease, transform 0.2s ease;
   max-width: 280px;
+  pointer-events: none;
 }
 
 .gr-badge-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+#gr-prompt {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none; /* the box inside opts back in */
+}
+
+.gr-prompt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(17, 24, 39, 0.92);
+  color: #f9fafb;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 12px 10px 16px;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: auto;
+}
+
+.gr-prompt-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.gr-prompt-text {
+  white-space: nowrap;
+}
+
+.gr-prompt-btn {
+  pointer-events: auto;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #22c55e;
+  color: #111827;
+}
+
+.gr-prompt-btn:last-child:not(:only-child) {
+  background: #374151;
+  color: #f9fafb;
 }
