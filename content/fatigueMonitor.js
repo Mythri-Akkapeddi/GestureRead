@@ -5,6 +5,9 @@
 //   score = (positionVariance / baselinePosition) * FATIGUE_POSITION_WEIGHT + (velocityVariance / baselineVelocity) * FATIGUE_VELOCITY_WEIGHT
 // A score of 1.0 means "same as baseline." FATIGUE_MULTIPLIER_THRESHOLD (2.0) means "twice as shaky as when the session started."
 
+// Once the score crosses the threshold, offers the user Reduced Precision Mode via a HUD nudge (overlay/notifications.js). 
+// fatigueNotified is a one-shot latch with hysteresis, it won't re-fire until the score has clearly recovered (below FATIGUE_NUDGE_RESET_MULTIPLIER), so a score hovering right at 2.0x doesn't spam a new nudge every 2s.
+
 (async function () {
   const {
     FATIGUE_BASELINE_SECONDS,
@@ -12,14 +15,16 @@
     FATIGUE_MULTIPLIER_THRESHOLD,
     FATIGUE_POSITION_WEIGHT,
     FATIGUE_VELOCITY_WEIGHT,
+    FATIGUE_NUDGE_RESET_MULTIPLIER,
   } = await import(chrome.runtime.getURL("utils/constants.js"));
 
   const baselineSamples = { position: [], velocity: [] };
   let baselineStartedAt = null;
-  let baseline = null; // { position, velocity } — set once, when the baseline window closes
+  let baseline = null;
 
   let latest = { positionVariance: 0, velocityVariance: 0 };
   let latestScore = 0;
+  let fatigueNotified = false;
 
   function handleVarianceFrame(event) {
     const { positionVariance, velocityVariance } = event.detail || {};
@@ -27,7 +32,7 @@
 
     latest = { positionVariance, velocityVariance };
 
-    if (baseline !== null) return; // baseline already locked in, nothing left to collect
+    if (baseline !== null) return;
 
     if (baselineStartedAt === null) {
       baselineStartedAt = Date.now();
@@ -40,7 +45,6 @@
     const elapsedSec = (Date.now() - baselineStartedAt) / 1000;
     if (elapsedSec >= FATIGUE_BASELINE_SECONDS) {
       baseline = {
-        // Guard against a perfectly still baseline (variance of 0) causing a divide-by-zero that would make every later reading score as "infinitely fatigued."
         position: rollingMean(baselineSamples.position) || 1e-9,
         velocity: rollingMean(baselineSamples.velocity) || 1e-9,
       };
@@ -55,11 +59,24 @@
     return positionRatio * FATIGUE_POSITION_WEIGHT + velocityRatio * FATIGUE_VELOCITY_WEIGHT;
   }
 
+  function maybeNotifyFatigue() {
+    if (latestScore >= FATIGUE_MULTIPLIER_THRESHOLD && !fatigueNotified) {
+      if (window.GestureReadGestureEngine?.isReducedPrecision()) return;
+      fatigueNotified = true;
+      console.log("[GestureRead] fatigue threshold crossed, showing nudge.");
+      window.GestureReadLogger?.log("fatigue_detected", null, { score: Number(latestScore.toFixed(2)) });
+      window.GestureReadOverlay?.notifyFatigueDetected(latestScore);
+    } else if (latestScore < FATIGUE_NUDGE_RESET_MULTIPLIER) {
+      fatigueNotified = false; // allow a fresh nudge once the score has clearly recovered
+    }
+  }
+
   function tick() {
-    if (!baseline) return; // still collecting baseline samples, nothing to score yet
+    if (!baseline) return;
     latestScore = computeFatigueScore();
     const flag = latestScore >= FATIGUE_MULTIPLIER_THRESHOLD ? " ⚠️ fatigued" : "";
     console.log(`[GestureRead] fatigue score: ${latestScore.toFixed(2)}x${flag}`);
+    maybeNotifyFatigue();
   }
 
   window.addEventListener("gestureread:variance", handleVarianceFrame);
