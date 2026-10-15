@@ -72,3 +72,13 @@ export const FATIGUE_CHECK_INTERVAL_MS = 2000;    // how often to recompute/log 
 export const FATIGUE_MULTIPLIER_THRESHOLD = 2.0;  // score at/above this multiplier = flagged as fatigued
 export const FATIGUE_POSITION_WEIGHT = 0.5;       // weight of position variance in the combined score
 export const FATIGUE_VELOCITY_WEIGHT = 0.5;       // weight of velocity variance in the combined score
+
+// Fatigue nudge 
+export const FATIGUE_NUDGE_TIMEOUT_MS = 8000;       // how long the nudge stays up before auto-dismissing for later
+export const FATIGUE_NUDGE_RESET_MULTIPLIER = 1.5;  // score must drop back below this before a new nudge can fire again (hysteresis, avoids flicker right at the threshold)
+
+// "Wrong gesture?" undo workflow 
+export const CORRECTION_WINDOW_MS = 4000;            // how long the undo prompt stays available after a gesture releases
+export const CORRECTION_MIN_SCROLL_DELTA = 20;       // ignore trivial scrolls, not worth prompting
+export const CORRECTION_MIN_ZOOM_DELTA = 0.03;       // zoom multiplier units
+export const CORRECTION_MIN_BRIGHTNESS_DELTA = 0.03; // brightness units (0–1 scale)
