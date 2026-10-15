@@ -1,4 +1,4 @@
-// Injects the transparent overlay iframe into the page and handles the postMessage handshake with it. 
+// Injects the transparent overlay iframe into the page and handles the postMessage handshake with it.
 // Runs before content.js in manifest.json's content_scripts array so content.js can call window.GestureReadOverlay.init().
 // In short, responsible for:
 // 1. Creating the overlay iframe.
@@ -6,7 +6,9 @@
 // 3. Keeping the iframe above the webpage.
 // 4. Performing the content <-> overlay handshake.
 
-// the MutationObserver that re-injects a removed overlay is now debounced and circuit-breakered, and remembers whether the engine was running so it can be restarted after a genuine reinjection (e.g. an SPA nuking and rebuilding <html> on route change).
+// the iframe is pointer-events:none by default so it never blocks page clicks. 
+// The two interactive HUD prompts (fatigue nudge, correction undo) need real clicks though, so setInteractive(true/false) flips the iframe's pointer-events for exactly as long as a prompt is showing. 
+// overlay.css keeps everything except the prompt box itself pointer-events:none inside the iframe too, so even while the iframe is "auto", clicking anywhere but the prompt still falls through to the page.
 
 (function () {
   const OVERLAY_ID = "gestureread-overlay-frame";
@@ -80,7 +82,7 @@
 
     const handleRemoval = debounce(() => {
       const current = document.getElementById(OVERLAY_ID);
-      if (current) return; // false alarm — still there
+      if (current) return;
 
       const now = Date.now();
       if (now - windowStart > REINJECT_WINDOW_MS) {
@@ -123,7 +125,7 @@
 
     if (data.type === "OVERLAY_READY") {
       console.log("[GestureRead] overlay acknowledged handshake");
-      setEnabledVisual(lastEnabledVisual); // resync in case this fired before the overlay was ready
+      setEnabledVisual(lastEnabledVisual);
       if (pendingEngineRestart) {
         pendingEngineRestart = false;
         console.log("[GestureRead] restarting engine after overlay reinjection");
@@ -141,8 +143,24 @@
       window.dispatchEvent(new CustomEvent("gestureread:variance", { detail: data.payload }));
       return;
     }
-    
+
+    if (data.type === "REDUCED_PRECISION_RESPONSE") {
+      setInteractive(false);
+      window.dispatchEvent(new CustomEvent("gestureread:reducedprecision", { detail: data.payload }));
+      return;
+    }
+
+    if (data.type === "CORRECTION_RESPONSE") {
+      setInteractive(false);
+      window.dispatchEvent(new CustomEvent("gestureread:correction", { detail: data.payload }));
+      return;
+    }
   });
+
+  function setInteractive(interactive) {
+    if (!overlayFrame) return;
+    overlayFrame.style.pointerEvents = interactive ? "auto" : "none";
+  }
 
   function startEngine() {
     if (!overlayFrame || !overlayFrame.contentWindow) {
@@ -183,7 +201,7 @@
     );
   }
 
-  let lastEnabledVisual = true; // resent after OVERLAY_READY so a late-loading overlay still syncs
+  let lastEnabledVisual = true;
 
   function setEnabledVisual(enabled) {
     lastEnabledVisual = enabled;
@@ -202,6 +220,33 @@
     );
   }
 
+  function notifyFatigueDetected(score) {
+    if (!overlayFrame || !overlayFrame.contentWindow) return;
+    setInteractive(true);
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "FATIGUE_DETECTED", payload: { score } },
+      "*"
+    );
+  }
+
+  function notifyCorrectionAvailable(entry) {
+    if (!overlayFrame || !overlayFrame.contentWindow) return;
+    setInteractive(true);
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "CORRECTION_AVAILABLE", payload: entry },
+      "*"
+    );
+  }
+
+  function notifyCorrectionExpired(gesture) {
+    if (!overlayFrame || !overlayFrame.contentWindow) return;
+    setInteractive(false);
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "CORRECTION_EXPIRED", payload: { gesture } },
+      "*"
+    );
+  }
+
   window.GestureReadOverlay = {
     init: initOverlay,
     ping: pingOverlay,
@@ -211,5 +256,8 @@
     setPointStatus,
     setEnabledVisual,
     notifyThresholdAdapted,
+    notifyFatigueDetected,
+    notifyCorrectionAvailable,
+    notifyCorrectionExpired,
   };
 })();
