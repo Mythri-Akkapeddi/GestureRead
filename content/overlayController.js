@@ -247,6 +247,14 @@
     );
   }
 
+  function setConfidence(value, pose) {
+    if (!overlayFrame || !overlayFrame.contentWindow) return;
+    overlayFrame.contentWindow.postMessage(
+      { source: "gestureread-content", type: "SET_CONFIDENCE", payload: { value, pose } },
+      "*"
+    );
+  }
+
   window.GestureReadOverlay = {
     init: initOverlay,
     ping: pingOverlay,
@@ -259,5 +267,6 @@
     notifyFatigueDetected,
     notifyCorrectionAvailable,
     notifyCorrectionExpired,
+    setConfidence,
   };
 })();
