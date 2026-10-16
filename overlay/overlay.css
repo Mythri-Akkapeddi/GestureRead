@@ -147,3 +147,31 @@ html, body {
   background: #374151;
   color: #f9fafb;
 }
+
+#gr-confidence-track {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  width: 140px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.gr-confidence-fill {
+  height: 100%;
+  width: 0%;
+  background: #22c55e;
+  transition: width 0.1s linear, background 0.2s ease;
+}
+
+#gr-confidence-label {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  font-size: 11px;
+  color: #d1d5db;
+  pointer-events: none;
+}
