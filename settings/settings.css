@@ -225,3 +225,46 @@ button:disabled {
   background: #374151;
   color: #f9fafb;
 }
+
+.gr-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.gr-matrix th, .gr-matrix td {
+  padding: 6px 8px;
+  text-align: center;
+  border-bottom: 1px solid #1f2937;
+}
+
+#gr-threshold-chart, #gr-confidence-chart {
+  width: 100%;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+#gr-session-list {
+  list-style: none;
+  padding: 0;
+  font-size: 12px;
+  max-height: 140px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+#gr-session-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid #1f2937;
+}
+
+.gr-export-row {
+  display: flex;
+  gap: 8px;
+}
+
+.gr-export-row button {
+  flex: 1;
+}
