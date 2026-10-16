@@ -127,3 +127,101 @@ button:disabled {
 #gr-done-screen {
   text-align: center;
 }
+
+#gr-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.gr-tab-btn {
+  flex: none;
+  background: #1f2937;
+  color: #9ca3af;
+  padding: 8px 16px;
+}
+
+.gr-tab-active {
+  background: #22c55e;
+  color: #111827;
+}
+
+#gr-tab-analytics {
+  width: 480px;
+}
+
+#gr-cards {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.gr-stat-card {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.gr-stat-number {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.gr-stat-label {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+#gr-progress-wrap {
+  margin-bottom: 20px;
+}
+
+#gr-progress-label {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+#gr-progress-bar-track {
+  background: #1f2937;
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+
+#gr-progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: #22c55e;
+  transition: width 0.3s ease;
+}
+
+#gr-per-gesture-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  font-size: 13px;
+  text-align: left;
+}
+
+#gr-per-gesture-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid #1f2937;
+}
+
+.gr-accordion-toggle {
+  width: 100%;
+  background: #1f2937;
+  color: #f9fafb;
+  text-align: left;
+  padding: 10px 14px;
+}
+
+.gr-refresh-btn {
+  width: 100%;
+  margin-top: 12px;
+  background: #374151;
+  color: #f9fafb;
+}
