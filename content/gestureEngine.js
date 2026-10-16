@@ -424,11 +424,13 @@
       brightnessExitStreak = 0;
       resetPointDetection();
       resetToggleDetection();
+      window.GestureReadOverlay?.setConfidence(0, null);
       return;
     }
 
     const rawPose = classifyPose(landmarks);
     const stablePose = updateStablePose(rawPose);
+    window.GestureReadOverlay?.setConfidence(confidenceFromStreak(), stablePose);
 
     // Always runs, even when `enabled` is false, otherwise there'd be no way back on.
     updateToggleDetection(stablePose);
