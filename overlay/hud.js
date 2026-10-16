@@ -67,5 +67,10 @@
       window.GestureReadNotifications?.showBadge(formatBadgeMessage(data.payload));
       return;
     }
+
+    if (data.type === "SET_CONFIDENCE") {
+      window.GestureReadConfidenceBar?.setValue(data.payload?.value ?? 0, data.payload?.pose);
+      return;
+    }
   });
 })();
