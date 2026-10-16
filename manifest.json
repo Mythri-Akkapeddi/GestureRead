@@ -55,7 +55,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["overlay/overlay.html", "overlay/overlay.css", "overlay/hud.js"],
+      "resources": ["overlay/overlay.html", "overlay/overlay.css", "overlay/hud.js", "overlay/confidenceBar.js"],
       "matches": ["<all_urls>"]
     },
     {
