@@ -6,34 +6,78 @@
     <link rel="stylesheet" href="settings.css" />
   </head>
   <body>
-    <div id="gr-wizard">
-      <header>
-        <h1>GestureRead Calibration</h1>
-        <p id="gr-step-label"></p>
-        <div id="gr-progress-dots"></div>
-      </header>
+    <div id="gr-shell">
+      <nav id="gr-tabs">
+        <button id="gr-tab-btn-calibration" class="gr-tab-btn gr-tab-active">Calibration</button>
+        <button id="gr-tab-btn-analytics" class="gr-tab-btn">Analytics</button>
+      </nav>
 
-      <main id="gr-card">
-        <div id="gr-gesture-emoji" class="gr-pulse"></div>
-        <h2 id="gr-gesture-title"></h2>
-        <p id="gr-gesture-instructions"></p>
-        <p id="gr-countdown"></p>
-      </main>
+      <div id="gr-tab-calibration">
+        <div id="gr-wizard">
+          <header>
+            <h1>GestureRead Calibration</h1>
+            <p id="gr-step-label"></p>
+            <div id="gr-progress-dots"></div>
+          </header>
 
-      <footer>
-        <button id="gr-back-btn">Back</button>
-        <button id="gr-skip-btn">Skip</button>
-        <button id="gr-next-btn">Next</button>
-      </footer>
-    </div>
+          <main id="gr-card">
+            <div id="gr-gesture-emoji" class="gr-pulse"></div>
+            <h2 id="gr-gesture-title"></h2>
+            <p id="gr-gesture-instructions"></p>
+            <p id="gr-countdown"></p>
+          </main>
 
-    <div id="gr-done-screen" class="gr-hidden">
-      <h1>All set!</h1>
-      <p>Calibration complete. Check the console for your personalized thresholds.</p>
-      <button id="gr-recalibrate-btn">Recalibrate</button>
+          <footer>
+            <button id="gr-back-btn">Back</button>
+            <button id="gr-skip-btn">Skip</button>
+            <button id="gr-next-btn">Next</button>
+          </footer>
+        </div>
+
+        <div id="gr-done-screen" class="gr-hidden">
+          <h1>All set!</h1>
+          <p>Calibration complete. Check the console for your personalized thresholds.</p>
+          <button id="gr-recalibrate-btn">Recalibrate</button>
+        </div>
+      </div>
+
+      <div id="gr-tab-analytics" class="gr-hidden">
+        <div id="gr-cards">
+          <div class="gr-stat-card">
+            <div id="gr-card-triggers" class="gr-stat-number">0</div>
+            <div class="gr-stat-label">Gestures used</div>
+          </div>
+          <div class="gr-stat-card">
+            <div id="gr-card-success" class="gr-stat-number">0%</div>
+            <div class="gr-stat-label">Success rate</div>
+          </div>
+          <div class="gr-stat-card">
+            <div id="gr-card-false-triggers" class="gr-stat-number">0</div>
+            <div class="gr-stat-label">False triggers</div>
+          </div>
+        </div>
+
+        <div id="gr-progress-wrap">
+          <div id="gr-progress-label">Learning Progress 0%</div>
+          <div id="gr-progress-bar-track">
+            <div id="gr-progress-bar-fill"></div>
+          </div>
+        </div>
+
+        <ul id="gr-per-gesture-list"></ul>
+
+        <button id="gr-advanced-toggle" class="gr-accordion-toggle">Advanced ▸</button>
+        <div id="gr-advanced-body" class="gr-hidden">
+          <p style="opacity:0.6; font-size: 13px;">Advanced metrics to be implemented.</p>
+        </div>
+
+        <button id="gr-refresh-btn" class="gr-refresh-btn">Refresh</button>
+      </div>
     </div>
 
     <script src="../utils/math.js"></script>
+    <script src="../analytics/reports.js"></script>
     <script type="module" src="calibrationPage.js"></script>
+    <script type="module" src="analyticsPage.js"></script>
   </body>
 </html>
