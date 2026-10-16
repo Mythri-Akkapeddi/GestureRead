@@ -67,8 +67,27 @@
         <ul id="gr-per-gesture-list"></ul>
 
         <button id="gr-advanced-toggle" class="gr-accordion-toggle">Advanced ▸</button>
-        <div id="gr-advanced-body" class="gr-hidden">
+        <!-- <div id="gr-advanced-body" class="gr-hidden">
           <p style="opacity:0.6; font-size: 13px;">Advanced metrics to be implemented.</p>
+        </div> -->
+        
+        <div id="gr-advanced-body" class="gr-hidden">
+          <h3>Confusion matrix</h3>
+          <div id="gr-confusion-table"></div>
+
+          <h3>Threshold history</h3>
+          <canvas id="gr-threshold-chart" width="420" height="140"></canvas>
+          
+          <h3>Confidence distribution</h3>
+          <canvas id="gr-confidence-chart" width="420" height="140"></canvas>
+
+          <h3>Sessions</h3>
+          <ul id="gr-session-list"></ul>
+          
+          <div class="gr-export-row">
+            <button id="gr-export-json-btn">Export JSON</button>
+            <button id="gr-export-csv-btn">Export CSV</button>
+          </div>
         </div>
 
         <button id="gr-refresh-btn" class="gr-refresh-btn">Refresh</button>
