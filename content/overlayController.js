@@ -155,6 +155,18 @@
       window.dispatchEvent(new CustomEvent("gestureread:correction", { detail: data.payload }));
       return;
     }
+
+    if (data.type === "LLM_GENERATE_RESULT") {
+      const entry = pendingLLMRequests.get(data.payload.requestId);
+      if (entry) { entry.resolve(data.payload.text); pendingLLMRequests.delete(data.payload.requestId); }
+      return;
+    }
+
+    if (data.type === "LLM_GENERATE_ERROR") {
+      const entry = pendingLLMRequests.get(data.payload.requestId);
+      if (entry) { entry.reject(new Error(data.payload.error)); pendingLLMRequests.delete(data.payload.requestId); }
+      return;
+    }
   });
 
   function setInteractive(interactive) {
@@ -255,6 +267,36 @@
     );
   }
 
+  const pendingLLMRequests = new Map();
+  let llmRequestCounter = 0;
+
+  function initLLM(modelId) {
+    if (!overlayFrame || !overlayFrame.contentWindow) return Promise.reject(new Error("overlay not ready"));
+    return new Promise((resolve, reject) => {
+      const onMsg = (event) => {
+        if (event.source !== overlayFrame.contentWindow) return;
+        const data = event.data;
+        if (!data || data.source !== "gestureread-overlay") return;
+        if (data.type === "LLM_INIT_COMPLETE") { window.removeEventListener("message", onMsg); resolve(); }
+        else if (data.type === "LLM_INIT_ERROR") { window.removeEventListener("message", onMsg); reject(new Error(data.error)); }
+      };
+      window.addEventListener("message", onMsg);
+      overlayFrame.contentWindow.postMessage({ source: "gestureread-content", type: "LLM_INIT", payload: { modelId } }, "*");
+    });
+  }
+
+  function generateLLM(messages, options) {
+    if (!overlayFrame || !overlayFrame.contentWindow) return Promise.reject(new Error("overlay not ready"));
+    const requestId = `req_${Date.now()}_${llmRequestCounter++}`;
+    return new Promise((resolve, reject) => {
+      pendingLLMRequests.set(requestId, { resolve, reject });
+      overlayFrame.contentWindow.postMessage(
+        { source: "gestureread-content", type: "LLM_GENERATE", payload: { requestId, messages, options } },
+        "*"
+      );
+    });
+  }
+
   window.GestureReadOverlay = {
     init: initOverlay,
     ping: pingOverlay,
@@ -268,5 +310,7 @@
     notifyCorrectionAvailable,
     notifyCorrectionExpired,
     setConfidence,
+    initLLM,
+    generateLLM,
   };
 })();
