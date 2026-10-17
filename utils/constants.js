@@ -82,3 +82,14 @@ export const CORRECTION_WINDOW_MS = 4000;            // how long the undo prompt
 export const CORRECTION_MIN_SCROLL_DELTA = 20;       // ignore trivial scrolls, not worth prompting
 export const CORRECTION_MIN_ZOOM_DELTA = 0.03;       // zoom multiplier units
 export const CORRECTION_MIN_BRIGHTNESS_DELTA = 0.03; // brightness units (0–1 scale)
+
+// LLM backend
+export const WEBLLM_MODEL_ID = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC"; // Apache-2.0, no usage restrictions
+export const OLLAMA_DEFAULT_MODEL = "qwen2.5:1.5b";                  // same license, same model family
+export const OLLAMA_DEFAULT_ENDPOINT = "http://localhost:11434";
+
+STORAGE_KEYS.LLM_BACKEND = "llmBackend";       // "webllm" | "ollama" | "auto"
+STORAGE_KEYS.OLLAMA_ENDPOINT = "ollamaEndpoint";
+
+MESSAGE_TYPES.ANALYZE_PAGE = "ANALYZE_PAGE";
+MESSAGE_TYPES.LLM_TEST_REQUEST = "LLM_TEST_REQUEST";
