@@ -38,6 +38,12 @@
           console.log("[GestureRead] toggle requested:", message.payload);
           sendResponse({ ok: true });
           break;
+        case "ANALYZE_PAGE": {
+          const text = window.GestureReadAnchorExtractor?.extractPageText() ?? "";
+          console.log("[GestureRead] extracted page text:", text);
+          sendResponse({ ok: true, data: { text } });
+          break;
+        }
         default:
           sendResponse({ ok: false, error: `content.js: unhandled message type ${message.type}` });
       }
