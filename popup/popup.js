@@ -17,3 +17,14 @@ document.getElementById("gr-calibrate-btn").addEventListener("click", async () =
     top: 40,
   });
 });
+
+document.getElementById("gr-analyze-btn").addEventListener("click", async () => {
+  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  chrome.tabs.sendMessage(activeTab.id, { type: "ANALYZE_PAGE" }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.error("[GestureRead] analyze page failed:", chrome.runtime.lastError.message);
+      return;
+    }
+    console.log("[GestureRead] analyze result:", response);
+  });
+});
