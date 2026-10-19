@@ -42,6 +42,7 @@
         "utils/math.js",
         "analytics/logger.js",
         "analytics/reports.js",
+        "llm/promptTemplatesBridge.js",
         "llm/anchorExtractor.js",
         "content/adaptiveThresholds.js",
         "content/overlayController.js",
@@ -66,6 +67,10 @@
     },
     {
       "resources": ["utils/constants.js"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["llm/promptTemplate.js"],
       "matches": ["<all_urls>"]
     }
   ]
