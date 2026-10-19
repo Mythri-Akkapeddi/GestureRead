@@ -39,10 +39,20 @@
           sendResponse({ ok: true });
           break;
         case "ANALYZE_PAGE": {
-          const text = window.GestureReadAnchorExtractor?.extractPageText() ?? "";
-          console.log("[GestureRead] extracted page text:", text);
-          sendResponse({ ok: true, data: { text } });
-          break;
+          (async () => {
+            const text = window.GestureReadAnchorExtractor?.extractPageText() ?? "";
+            console.log("[GestureRead] extracted page text (", text.length, "chars )");
+            try {
+              await window.GestureReadOverlay.initLLM("Qwen2.5-1.5B-Instruct-q4f16_1-MLC");
+              const anchors = await window.GestureReadAnchorExtractor.requestAnchors(text);
+              console.log("[GestureRead] anchors:", anchors);
+              sendResponse({ ok: true, data: { anchors } });
+            } catch (err) {
+              console.error("[GestureRead] analyze page failed:", err);
+              sendResponse({ ok: false, error: err.message });
+            }
+          })();
+          return true;
         }
         default:
           sendResponse({ ok: false, error: `content.js: unhandled message type ${message.type}` });
