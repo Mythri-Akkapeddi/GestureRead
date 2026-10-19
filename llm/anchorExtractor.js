@@ -17,6 +17,27 @@
     const raw = document.body?.innerText ?? "";
     return cleanPageText(raw);
   }
+  
+  function parseAnchorsResponse(raw) {
+    if (!raw) return [];
+    // Strip markdown fences if the model adds them despite instructions.
+    const stripped = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+    try {
+      const parsed = JSON.parse(stripped);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((a) => a && typeof a.title === "string" && typeof a.anchorText === "string");
+    } catch (err) {
+      console.warn("[GestureRead] anchor JSON parse failed:", err.message, "\nraw:", raw);
+      return [];
+    }
+  }
 
-  window.GestureReadAnchorExtractor = { cleanPageText, extractPageText };
+  async function requestAnchors(pageText) {
+    // window.GestureReadLLMPrompts is exposed below via a small bridge so this file doesn't need to be a module to use promptTemplates.js's exports.
+    const messages = window.GestureReadLLMPrompts.buildAnchorMessages(pageText);
+    const raw = await window.GestureReadOverlay.generateLLM(messages, { temperature: 0.1, maxTokens: 800 });
+    return parseAnchorsResponse(raw);
+  }
+  
+  window.GestureReadAnchorExtractor = { cleanPageText, extractPageText, parseAnchorsResponse, requestAnchors };
 })();
